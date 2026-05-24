@@ -1,0 +1,2221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>VEIN ⟁ TREFOIL</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Philosopher:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --panel:rgba(8,2,20,0.85); --border:rgba(180,120,255,0.25);
+  --accent:#ff66ee; --accent2:#66e6ff; --gold:#ffd966; --text:#c8a8ff; --label:#7a5aa0;
+}
+html,body{width:100%;height:100%;background:#000;overflow:hidden;color:var(--text);font-family:'Rajdhani',sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair}
+#three-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;touch-action:none}
+
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:18;
+  background:radial-gradient(ellipse at center,transparent 30%,rgba(0,0,0,0.6) 100%)}
+
+#cleanToggle{position:fixed;top:14px;right:14px;z-index:40;
+  background:rgba(8,2,20,0.85);border:1px solid var(--border);
+  color:var(--accent);width:42px;height:42px;border-radius:50%;
+  font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-family:'Philosopher';transition:all 0.2s}
+#cleanToggle:hover{background:rgba(255,102,238,0.25);box-shadow:0 0 16px rgba(255,102,238,0.5);color:#fff}
+body.clean #hud,body.clean #meter,body.clean #actions,body.clean #throttle,
+body.clean #pathStrip,body.clean #layerStack,body.clean #panel{opacity:0;pointer-events:none}
+body.clean #cleanToggle{opacity:0.3}
+body.clean #cleanToggle:hover{opacity:1}
+#hud,#meter,#actions,#throttle,#pathStrip,#layerStack,#panel{transition:opacity 0.4s}
+
+#hud{position:fixed;top:14px;left:18px;z-index:25;font-family:'Philosopher',serif;
+  font-size:17px;letter-spacing:0.3em;color:var(--accent);
+  text-shadow:0 0 12px rgba(255,102,238,0.6);pointer-events:none}
+#hud small{display:block;font-family:'Rajdhani';font-size:9px;letter-spacing:0.4em;
+  color:var(--label);margin-top:2px}
+
+#whisper{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:25;
+  font-family:'Philosopher',serif;font-style:italic;font-size:15px;letter-spacing:0.15em;
+  color:#fff;text-shadow:0 0 16px var(--accent);text-align:center;
+  opacity:0;transition:opacity 1.2s;pointer-events:none;max-width:75%}
+#whisper.show{opacity:0.85}
+
+#meter{position:fixed;bottom:14px;left:18px;z-index:25;font-family:'Rajdhani';
+  font-size:10px;letter-spacing:0.3em;color:var(--gold);pointer-events:none}
+#meter .big{font-family:'Philosopher';font-size:20px;letter-spacing:0.1em;color:var(--accent);display:block;line-height:1}
+#meter small{display:block;font-size:7px;color:var(--label);letter-spacing:0.4em;margin-top:4px}
+
+#slidepad{position:fixed;inset:0;z-index:5;touch-action:none}
+#slideTrail{position:fixed;width:60px;height:60px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,102,238,0.5),transparent 70%);
+  pointer-events:none;z-index:15;opacity:0;transition:opacity 0.4s;
+  margin:-30px 0 0 -30px;mix-blend-mode:screen}
+#slideTrail.active{opacity:1}
+
+#layerStack{position:fixed;right:14px;top:64px;z-index:28;
+  display:flex;flex-direction:column;gap:6px}
+.layer-btn{background:rgba(8,2,20,0.8);border:1px solid var(--border);
+  color:var(--text);padding:8px 12px;border-radius:18px;
+  font-family:'Rajdhani';font-size:10px;letter-spacing:0.2em;cursor:pointer;
+  text-transform:uppercase;display:flex;align-items:center;gap:6px;min-width:130px;
+  transition:all 0.2s}
+.layer-btn .dot{width:8px;height:8px;border-radius:50%;background:#444;transition:all 0.2s}
+.layer-btn.on{color:#fff;border-color:var(--accent);background:rgba(255,102,238,0.2)}
+.layer-btn.on .dot{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+
+#actions{position:fixed;left:14px;top:50%;transform:translateY(-50%);z-index:28;
+  display:flex;flex-direction:column;gap:8px}
+.action-btn{background:rgba(8,2,20,0.8);border:1px solid var(--border);
+  color:var(--accent);width:44px;height:44px;border-radius:50%;
+  font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-family:'Philosopher';transition:all 0.2s}
+.action-btn:hover,.action-btn.on{background:rgba(255,102,238,0.25);
+  box-shadow:0 0 16px rgba(255,102,238,0.5);color:#fff}
+
+#pathStrip{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:28;
+  display:flex;gap:4px;padding:6px;background:rgba(8,2,20,0.7);
+  border:1px solid var(--border);border-radius:30px;backdrop-filter:blur(10px);
+  max-width:90vw;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.path-btn{background:transparent;border:none;color:var(--text);
+  font-family:'Philosopher';font-size:10px;letter-spacing:0.2em;
+  padding:8px 12px;cursor:pointer;text-transform:uppercase;border-radius:20px;
+  white-space:nowrap;transition:all 0.2s}
+.path-btn.on{background:rgba(255,102,238,0.35);color:#fff;
+  box-shadow:0 0 12px rgba(255,102,238,0.5)}
+
+#throttle{position:fixed;right:14px;bottom:80px;
+  width:42px;height:160px;z-index:28;
+  background:linear-gradient(to top,rgba(8,2,20,0.7),rgba(255,102,238,0.15));
+  border:1px solid var(--border);border-radius:21px;touch-action:none;overflow:hidden}
+#throttle .fill{position:absolute;left:0;right:0;bottom:0;
+  background:linear-gradient(to top,#aa00ff,#ff66ee,#ffd966);
+  box-shadow:0 0 16px var(--accent)}
+#throttle .lbl{position:absolute;top:-22px;left:50%;transform:translateX(-50%);
+  font-size:8px;letter-spacing:0.3em;color:var(--label)}
+#throttle .val{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);
+  font-size:9px;letter-spacing:0.2em;color:var(--gold);font-family:'Rajdhani';font-weight:700}
+
+#panel{position:fixed;top:0;right:0;bottom:0;width:280px;z-index:35;
+  background:var(--panel);border-left:1px solid var(--border);
+  backdrop-filter:blur(12px);overflow-y:auto;padding:18px 16px 80px;
+  transition:transform 0.35s cubic-bezier(.7,0,.3,1);transform:translateX(100%)}
+#panel.open{transform:translateX(0)}
+#panel h2{font-family:'Philosopher',serif;font-size:11px;letter-spacing:0.4em;
+  color:var(--accent2);margin:18px 0 8px;padding-bottom:4px;
+  border-bottom:1px solid var(--border);text-transform:uppercase}
+#panel h2:first-child{margin-top:0}
+.row{display:flex;justify-content:space-between;align-items:center;margin:8px 0}
+.row label{color:var(--label);text-transform:uppercase;font-size:9px;letter-spacing:0.2em}
+.row .val{color:var(--gold);font-family:'Rajdhani';font-weight:500;font-size:10px}
+input[type=range]{width:100%;margin:2px 0 6px;accent-color:var(--accent);height:3px}
+.btn{display:inline-block;background:rgba(180,120,255,0.1);
+  border:1px solid var(--border);color:var(--text);
+  font-family:'Rajdhani';font-size:10px;letter-spacing:0.2em;
+  padding:6px 10px;margin:2px;cursor:pointer;text-transform:uppercase;border-radius:2px}
+.btn:hover{background:rgba(255,102,238,0.2);color:#fff;border-color:var(--accent)}
+.btn.on{background:rgba(255,102,238,0.3);border-color:var(--accent);color:#fff;
+  box-shadow:0 0 12px rgba(255,102,238,0.4)}
+.btn-grid{display:flex;flex-wrap:wrap;gap:2px;margin:4px 0}
+.swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:1px solid rgba(255,255,255,0.2)}
+.swatch.on{transform:scale(1.2);box-shadow:0 0 8px currentColor}
+
+#veil{position:fixed;inset:0;z-index:60;background:#000;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  gap:14px;transition:opacity 1.5s;padding:20px}
+#veil.gone{opacity:0;pointer-events:none}
+#veil h1{font-family:'Philosopher',serif;font-size:28px;letter-spacing:0.5em;
+  color:var(--accent);text-shadow:0 0 20px rgba(255,102,238,0.6);text-align:center}
+#veil p{font-size:11px;letter-spacing:0.4em;color:var(--label);text-align:center;max-width:90%;line-height:1.6}
+#enterBtn{background:transparent;border:1px solid var(--accent);
+  color:var(--accent);padding:14px 40px;font-family:'Philosopher';
+  font-size:14px;letter-spacing:0.4em;cursor:pointer;margin-top:14px}
+#enterBtn:hover{background:var(--accent);color:#000;box-shadow:0 0 40px rgba(255,102,238,0.8)}
+.pulse{animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:0.5}50%{opacity:1}}
+</style>
+</head>
+<body class="clean">
+
+<div id="veil">
+  <h1>VEIN ⟁ TREFOIL</h1>
+  <p class="pulse">flowing along the knot<br>see through the loop</p>
+  <button id="enterBtn">ENTER</button>
+</div>
+
+<canvas id="three-canvas"></canvas>
+<div id="vignette"></div>
+<div id="slidepad"></div>
+<div id="slideTrail"></div>
+
+<button id="cleanToggle" title="Hide / show UI">⊞</button>
+
+<div id="hud">VEIN ⟁ TREFOIL<small id="hudSub">flowing</small></div>
+<div id="whisper"></div>
+<div id="meter">
+  <span class="big" id="meterBig">0.0</span>
+  <small>flow rate</small>
+</div>
+
+<div id="layerStack">
+  <button class="layer-btn on" data-layer="tube"><span class="dot"></span>VEIN TUBE</button>
+  <button class="layer-btn on" data-layer="screenVein"><span class="dot"></span>SCREEN VEINS</button>
+  <button class="layer-btn" data-layer="mycelium"><span class="dot"></span>MYCELIUM</button>
+  <button class="layer-btn" data-layer="polytopes"><span class="dot"></span>4D PRESENCES</button>
+  <button class="layer-btn" data-layer="bubbles"><span class="dot"></span>BUBBLES</button>
+  <button class="layer-btn" data-layer="planets"><span class="dot"></span>PLANETS</button>
+  <button class="layer-btn on" data-layer="collider"><span class="dot"></span>COLLIDER</button>
+  <button class="layer-btn" data-layer="loopView"><span class="dot"></span>SEE THE LOOP</button>
+</div>
+
+<div id="actions">
+  <button class="action-btn" id="btnRandom" title="Random palette">🎲</button>
+  <button class="action-btn" id="btnPalette" title="Cycle palette">🎨</button>
+  <button class="action-btn" id="btnPause" title="Pause">⏸</button>
+  <button class="action-btn" id="btnSettings" title="Settings">⚙</button>
+</div>
+
+<div id="throttle">
+  <div class="lbl">flow</div>
+  <div class="fill" id="throttleFill" style="height:50%"></div>
+  <div class="val" id="throttleVal">0.50</div>
+</div>
+
+<div id="pathStrip">
+  <button class="path-btn on" data-path="trefoil">TREFOIL</button>
+  <button class="path-btn" data-path="figure8">FIGURE 8</button>
+  <button class="path-btn" data-path="torus">TORUS KNOT</button>
+  <button class="path-btn" data-path="knot41">4₁ KNOT</button>
+  <button class="path-btn" data-path="rose">ROSE</button>
+  <button class="path-btn" data-path="helix">HELIX</button>
+  <button class="path-btn" data-path="viviani">VIVIANI</button>
+  <button class="path-btn" data-path="circle">CIRCLE</button>
+</div>
+
+<div id="panel">
+  <h2>🐍 Spine Curve</h2>
+  <div class="row"><label>Loop Size</label><span class="val" id="vLoopR">8.0</span></div>
+  <input type="range" id="loopR" min="2" max="20" step="0.5" value="8">
+  <div class="row"><label>Travel Speed</label><span class="val" id="vTravel">0.05</span></div>
+  <input type="range" id="travel" min="0" max="0.3" step="0.005" value="0.05">
+  <div class="row"><label>Look Ahead</label><span class="val" id="vLook">0.02</span></div>
+  <input type="range" id="look" min="0.005" max="0.1" step="0.005" value="0.02">
+  <div class="row"><label>Spine Breathe</label><span class="val" id="vBreathe">0.5</span></div>
+  <input type="range" id="breathe" min="0" max="2" step="0.05" value="0.5">
+
+  <h2>🩸 Vein Tube</h2>
+  <div class="row"><label>Tube Radius</label><span class="val" id="vTubeR">0.8</span></div>
+  <input type="range" id="tubeR" min="0.2" max="3" step="0.05" value="0.8">
+  <div class="row"><label>Tube Detail</label><span class="val" id="vDetail">200</span></div>
+  <input type="range" id="detail" min="60" max="400" step="20" value="200">
+  <div class="row"><label>Wave Speed</label><span class="val" id="vWspd">1.0</span></div>
+  <input type="range" id="wspd" min="0" max="4" step="0.05" value="1.0">
+  <div class="row"><label>Iridescence</label><span class="val" id="vIrid">1.3</span></div>
+  <input type="range" id="irid" min="0" max="2" step="0.05" value="1.3">
+  <div class="row"><label>Hue Cycle</label><span class="val" id="vHue">1.0</span></div>
+  <input type="range" id="hue" min="0" max="4" step="0.05" value="1.0">
+  <div class="row"><label>Vein Brightness</label><span class="val" id="vBri">1.0</span></div>
+  <input type="range" id="bri" min="0" max="2" step="0.05" value="1.0">
+  <div class="row"><label>Glow</label><span class="val" id="vGlow">0.8</span></div>
+  <input type="range" id="glow" min="0" max="2" step="0.05" value="0.8">
+
+  <h2>👁 Layer Opacity</h2>
+  <div class="row"><label>Vein Tube</label><span class="val" id="vOpTube">0.65</span></div>
+  <input type="range" id="opTube" min="0" max="1" step="0.02" value="0.65">
+  <div class="row"><label>Screen Veins</label><span class="val" id="vOpScreen">0.7</span></div>
+  <input type="range" id="opScreen" min="0" max="1" step="0.02" value="0.7">
+  <div class="row"><label>Mycelium</label><span class="val" id="vOpMyc">1.0</span></div>
+  <input type="range" id="opMyc" min="0" max="1" step="0.02" value="1.0">
+  <div class="row"><label>4D Presences</label><span class="val" id="vOpP4d">1.0</span></div>
+  <input type="range" id="opP4d" min="0" max="1" step="0.02" value="1.0">
+  <div class="row"><label>Bubbles</label><span class="val" id="vOpBub">1.0</span></div>
+  <input type="range" id="opBub" min="0" max="1" step="0.02" value="1.0">
+  <div class="row"><label>Planets</label><span class="val" id="vOpPlnt">1.0</span></div>
+  <input type="range" id="opPlnt" min="0" max="1" step="0.02" value="1.0">
+  <div class="row"><label>Collider</label><span class="val" id="vOpCol">1.0</span></div>
+  <input type="range" id="opCol" min="0" max="1" step="0.02" value="1.0">
+
+  <h2>⬢ 4D Presences</h2>
+  <div class="row"><label>Count</label><span class="val" id="vP4d">21</span></div>
+  <input type="range" id="p4d" min="0" max="30" step="1" value="21">
+  <div class="row"><label>Size</label><span class="val" id="vP4dSz">1.30</span></div>
+  <input type="range" id="p4dSz" min="0.3" max="3" step="0.05" value="1.3">
+  <div class="row"><label>4D Rotation</label><span class="val" id="vP4dRot">2.60</span></div>
+  <input type="range" id="p4dRot" min="0" max="3" step="0.05" value="2.6">
+
+  <h2>🧬 Mycelium</h2>
+  <div class="row"><label>Nodes</label><span class="val" id="vMyc">120</span></div>
+  <input type="range" id="myc" min="0" max="300" step="10" value="120">
+  <div class="row"><label>Pulse Speed</label><span class="val" id="vMpls">1.0</span></div>
+  <input type="range" id="mpls" min="0" max="3" step="0.05" value="1.0">
+  <div class="row"><label>Connection Range</label><span class="val" id="vMrng">1.6</span></div>
+  <input type="range" id="mrng" min="0.3" max="4" step="0.05" value="1.6">
+  <div class="row"><label>Spread</label><span class="val" id="vMspr">1.0</span></div>
+  <input type="range" id="mspr" min="0.3" max="3" step="0.05" value="1.0">
+
+  <h2>✦ Bubbles</h2>
+  <div class="row"><label>Density</label><span class="val" id="vBub">400</span></div>
+  <input type="range" id="bub" min="0" max="1500" step="50" value="400">
+  <div class="row"><label>Size</label><span class="val" id="vBsz">1.0</span></div>
+  <input type="range" id="bsz" min="0.2" max="3" step="0.05" value="1.0">
+
+  <h2>🪐 Planets</h2>
+  <div class="row"><label>Count</label><span class="val" id="vPlnt">8</span></div>
+  <input type="range" id="plnt" min="0" max="30" step="1" value="8">
+  <div class="row"><label>Size</label><span class="val" id="vPlntSz">1.0</span></div>
+  <input type="range" id="plntSz" min="0.2" max="3" step="0.05" value="1.0">
+  <div class="row"><label>Orbit Radius</label><span class="val" id="vPlntR">1.4</span></div>
+  <input type="range" id="plntR" min="0.4" max="4" step="0.05" value="1.4">
+  <div class="row"><label>Orbit Speed</label><span class="val" id="vPlntSpd">1.0</span></div>
+  <input type="range" id="plntSpd" min="0" max="4" step="0.05" value="1.0">
+  <div class="row"><label>Glow</label><span class="val" id="vPlntGlow">1.0</span></div>
+  <input type="range" id="plntGlow" min="0" max="2.5" step="0.05" value="1.0">
+  <div class="row"><label>Ring Chance</label><span class="val" id="vPlntRng">0.4</span></div>
+  <input type="range" id="plntRng" min="0" max="1" step="0.05" value="0.4">
+
+  <h2>⚛ Particle Collider</h2>
+  <div class="row"><label>Electron Count</label><span class="val" id="vColC">440</span></div>
+  <input type="range" id="colC" min="0" max="600" step="20" value="440">
+  <div class="row"><label>Particle Size</label><span class="val" id="vColSz">0.25</span></div>
+  <input type="range" id="colSz" min="0.2" max="4" step="0.05" value="0.25">
+  <div class="row"><label>Orbit Speed</label><span class="val" id="vColSpd">4.90</span></div>
+  <input type="range" id="colSpd" min="0" max="8" step="0.1" value="4.9">
+  <div class="row"><label>Orbit Radius</label><span class="val" id="vColR">1.60</span></div>
+  <input type="range" id="colR" min="0.2" max="3" step="0.05" value="1.6">
+  <div class="row"><label>Trail Length</label><span class="val" id="vColTrl">17</span></div>
+  <input type="range" id="colTrl" min="0" max="30" step="1" value="17">
+  <div class="row"><label>Trail Width</label><span class="val" id="vColTrlW">1.75</span></div>
+  <input type="range" id="colTrlW" min="0.2" max="3" step="0.05" value="1.75">
+  <div class="row"><label>Glow Intensity</label><span class="val" id="vColGlow">2.10</span></div>
+  <input type="range" id="colGlow" min="0" max="3" step="0.05" value="2.1">
+  <div class="row"><label>Nucleus Count</label><span class="val" id="vColNuc">14</span></div>
+  <input type="range" id="colNuc" min="1" max="20" step="1" value="14">
+
+  <h2>💥 Collisions & Fireworks</h2>
+  <div class="row"><label>Collision Distance</label><span class="val" id="vColHit">1.06</span></div>
+  <input type="range" id="colHit" min="0" max="1.5" step="0.02" value="1.06">
+  <div class="row"><label>Collision Rate</label><span class="val" id="vColRate">1.0</span></div>
+  <input type="range" id="colRate" min="0" max="3" step="0.05" value="1.0">
+  <div class="row"><label>Sparks Per Burst</label><span class="val" id="vFwCnt">60</span></div>
+  <input type="range" id="fwCnt" min="0" max="80" step="1" value="60">
+  <div class="row"><label>Burst Velocity</label><span class="val" id="vFwVel">5.00</span></div>
+  <input type="range" id="fwVel" min="0.2" max="8" step="0.1" value="5.0">
+  <div class="row"><label>Burst Lifetime</label><span class="val" id="vFwLife">1.4</span></div>
+  <input type="range" id="fwLife" min="0.2" max="4" step="0.1" value="1.4">
+  <div class="row"><label>Burst Size</label><span class="val" id="vFwSz">1.0</span></div>
+  <input type="range" id="fwSz" min="0.2" max="4" step="0.05" value="1.0">
+  <div class="row"><label>Gravity (downward)</label><span class="val" id="vFwGrav">-1.00</span></div>
+  <input type="range" id="fwGrav" min="-2" max="3" step="0.05" value="-1.0">
+  <div class="row"><label>Color Variation</label><span class="val" id="vFwVar">0.64</span></div>
+  <input type="range" id="fwVar" min="0" max="1" step="0.02" value="0.64">
+
+  <h2>🌊 Screen Veins</h2>
+  <div class="row"><label>Scale</label><span class="val" id="vScVScale">2.0</span></div>
+  <input type="range" id="scVScale" min="0.3" max="6" step="0.05" value="2.0">
+  <div class="row"><label>Wave Speed</label><span class="val" id="vScVSpd">1.0</span></div>
+  <input type="range" id="scVSpd" min="0" max="3" step="0.05" value="1.0">
+  <div class="row"><label>Tunnel Pull</label><span class="val" id="vScVPull">1.0</span></div>
+  <input type="range" id="scVPull" min="0" max="3" step="0.05" value="1.0">
+  <div class="row"><label>Pulse Intensity</label><span class="val" id="vScVPls">1.0</span></div>
+  <input type="range" id="scVPls" min="0" max="2" step="0.05" value="1.0">
+
+  <h2>📷 Camera</h2>
+  <div class="row"><label>FOV</label><span class="val" id="vFov">75</span></div>
+  <input type="range" id="fov" min="30" max="140" step="1" value="75">
+  <div class="row"><label>Slide Sensitivity</label><span class="val" id="vSlide">1.0</span></div>
+  <input type="range" id="slide" min="0.2" max="3" step="0.05" value="1.0">
+  <div class="row"><label>Roll Bank</label><span class="val" id="vBank">0.6</span></div>
+  <input type="range" id="bank" min="0" max="2" step="0.05" value="0.6">
+
+  <h2>🎨 Palette</h2>
+  <div class="btn-grid" id="palettes">
+    <div class="swatch on" data-pal="0" style="background:linear-gradient(45deg,#ff00ff,#00ffff);color:#ff66ee"></div>
+    <div class="swatch"     data-pal="1" style="background:linear-gradient(45deg,#ffd700,#ff5500);color:#ffaa00"></div>
+    <div class="swatch"     data-pal="2" style="background:linear-gradient(45deg,#00ddff,#0044ff);color:#00ddff"></div>
+    <div class="swatch"     data-pal="3" style="background:linear-gradient(45deg,#00ff88,#88ff00);color:#00ff88"></div>
+    <div class="swatch"     data-pal="4" style="background:linear-gradient(45deg,#ff0088,#ff88aa);color:#ff0088"></div>
+    <div class="swatch"     data-pal="5" style="background:linear-gradient(45deg,#aa00ff,#ff00aa);color:#aa00ff"></div>
+    <div class="swatch"     data-pal="6" style="background:linear-gradient(45deg,#88ccff,#ffffff);color:#88ccff"></div>
+    <div class="swatch"     data-pal="7" style="background:linear-gradient(45deg,#ff3300,#ffcc00);color:#ff5500"></div>
+  </div>
+
+  <div class="btn-grid" style="margin-top:14px">
+    <button class="btn" id="resetBtn">RESET</button>
+    <button class="btn" id="snapBtn">📷 SNAP</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+let errCount = 0;
+window.addEventListener('error', e => { errCount++; if(errCount > 5) e.preventDefault(); });
+
+// ──────────────────────────────────────────────────────────
+// SETUP
+// ──────────────────────────────────────────────────────────
+const canvas = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x02000a, 0.012);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.05, 500);
+
+// Lights for tube shading
+const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+scene.add(ambient);
+const point = new THREE.PointLight(0xffffff, 1.5, 60);
+scene.add(point);
+
+// ──────────────────────────────────────────────────────────
+// SCREEN VEINS — fullscreen shader background (from mycelium tunnel)
+// Renders the classic purple-pink screen-filling capillary tunnel
+// ──────────────────────────────────────────────────────────
+const screenVeinVert = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position,1.0); }`;
+const screenVeinFrag = `
+precision highp float;
+varying vec2 vUv;
+uniform float uTime, uAspect, uThrottle;
+uniform vec2  uSlide;
+uniform float uScale, uSpd, uPull, uPls;
+uniform float uHue, uIrid, uBri, uGlow, uOpacity;
+uniform vec3  uColA, uColB, uColC;
+
+vec3 hsv2rgb(vec3 c){
+  vec3 p = abs(fract(c.xxx + vec3(0.0,2.0/3.0,1.0/3.0))*6.0-3.0);
+  return c.z * mix(vec3(1.0), clamp(p-1.0,0.0,1.0), c.y);
+}
+mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float noise2(vec2 p){
+  vec2 i=floor(p), f=fract(p);
+  vec2 u=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),u.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),u.x), u.y);
+}
+float fbm(vec2 p){
+  float v=0.0,a=0.5;
+  for(int i=0;i<5;i++){ v+=a*noise2(p); p=rot(0.5)*p*2.0; a*=0.5; }
+  return v;
+}
+
+void main(){
+  vec2 uv = vUv * 2.0 - 1.0;
+  uv.x *= uAspect;
+  uv -= uSlide * 0.6;
+  
+  float r = length(uv);
+  float ang = atan(uv.y, uv.x);
+  
+  // Classic tunnel coord — 1/r gives that radial zoom toward center
+  float z = uTime * uSpd * (0.6 + uThrottle*0.8) + (0.5 * uPull) / max(r, 0.05);
+  
+  vec2 wall = vec2(ang * 1.5, z);
+  
+  // Multi-scale vein network
+  float n1 = fbm(wall * uScale + uTime * 0.2 * uSpd);
+  float n2 = fbm(wall * uScale * 2.0 - uTime * 0.15 * uSpd);
+  float n3 = fbm(wall * uScale * 4.0 + uTime * 0.4 * uSpd);
+  float v1 = 1.0 - smoothstep(0.0, 0.04, abs(n1 - 0.5));
+  float v2 = 1.0 - smoothstep(0.0, 0.05, abs(n2 - 0.5));
+  float v3 = 1.0 - smoothstep(0.0, 0.07, abs(n3 - 0.5));
+  float vein = v1 + v2*0.6 + v3*0.3;
+  
+  vec3 base = mix(uColA, uColB, n1);
+  base = mix(base, uColC, n2*0.7);
+  base *= 0.35;
+  
+  float h = fract(n1*0.5 + uTime*0.08*uHue);
+  vec3 vc = hsv2rgb(vec3(h, 0.85, 1.0));
+  
+  vec3 col = base + vc * vein * uIrid * 1.4;
+  // Heartbeat pulse along the veins
+  col += vc * vein * sin(uTime*3.0*uPls + n1*12.0) * 0.3 * uGlow;
+  // Brightness toward center for tunnel feel
+  col *= 1.0 + uGlow * 0.4 * (1.0 - smoothstep(0.0, 0.6, r));
+  col *= uBri;
+  // Soft vignette at extreme edges
+  col *= smoothstep(2.0, 0.3, r);
+  
+  // Alpha: vein-heavy in the foreground falls off so 3D scene punches through
+  float alpha = uOpacity * (0.5 + 0.5 * vein);
+  
+  gl_FragColor = vec4(col, alpha);
+}
+`;
+const screenVeinScene = new THREE.Scene();
+const screenVeinCam = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const screenVeinMat = new THREE.ShaderMaterial({
+  vertexShader: screenVeinVert,
+  fragmentShader: screenVeinFrag,
+  transparent: true,
+  depthWrite: false,
+  uniforms: {
+    uTime:{value:0}, uAspect:{value:window.innerWidth/window.innerHeight},
+    uThrottle:{value:0.5}, uSlide:{value:new THREE.Vector2(0,0)},
+    uScale:{value:2.0}, uSpd:{value:1.0}, uPull:{value:1.0}, uPls:{value:1.0},
+    uHue:{value:1.0}, uIrid:{value:1.3}, uBri:{value:1.0}, uGlow:{value:0.8}, uOpacity:{value:0.7},
+    uColA:{value:new THREE.Vector3(1,0,1)}, uColB:{value:new THREE.Vector3(0,1,1)}, uColC:{value:new THREE.Vector3(1,1,0)}
+  }
+});
+screenVeinScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), screenVeinMat));
+
+// ──────────────────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────────────────
+const state = {
+  loopR: 8, travel: 0.05, look: 0.02, breathe: 0.5,
+  tubeR: 0.8, detail: 200, wspd: 1.0, irid: 1.3, hue: 1.0, bri: 1.0, glow: 0.8,
+  scVScale: 2.0, scVSpd: 1.0, scVPull: 1.0, scVPls: 1.0,
+  p4d: 21, p4dSz: 1.3, p4dRot: 2.6,
+  myc: 120, mpls: 1.0, mrng: 1.6, mspr: 1.0,
+  bub: 400, bsz: 1.0,
+  plnt: 8, plntSz: 1.0, plntR: 1.4, plntSpd: 1.0, plntGlow: 1.0, plntRng: 0.4,
+  colC: 440, colSz: 0.25, colSpd: 4.9, colR: 1.6, colTrl: 17, colTrlW: 1.75, colGlow: 2.1, colNuc: 14,
+  colHit: 1.06, colRate: 1.0,
+  fwCnt: 60, fwVel: 5.0, fwLife: 1.4, fwSz: 1.0, fwGrav: -1.0, fwVar: 0.64,
+  fov: 75, slide: 1.0, bank: 0.6,
+  throttle: 0.5, paused: false, paletteIdx: 0,
+  path: 'trefoil',
+  layers: { tube:true, screenVein:true, mycelium:false, polytopes:false, bubbles:false, planets:false, collider:true, loopView:false },
+  opacity: { tube:0.65, screen:0.7, myc:1.0, p4d:1.0, bub:1.0, plnt:1.0, col:1.0 }
+};
+
+const palettes = [
+  [[1.0,0.0,1.0],[0.0,1.0,1.0],[1.0,1.0,0.0]],     // psyche
+  [[1.0,0.84,0.0],[1.0,0.33,0.0],[1.0,0.67,1.0]],  // solar
+  [[0.0,0.87,1.0],[0.0,0.27,1.0],[0.53,1.0,1.0]],  // ocean
+  [[0.0,1.0,0.53],[0.53,1.0,0.0],[0.87,1.0,0.53]], // forest
+  [[1.0,0.0,0.53],[1.0,0.53,0.67],[1.0,0.8,0.87]], // rose
+  [[0.67,0.0,1.0],[1.0,0.0,0.67],[0.87,0.67,1.0]], // violet
+  [[0.53,0.8,1.0],[1.0,1.0,1.0],[0.67,0.93,1.0]],  // ice
+  [[1.0,0.2,0.0],[1.0,0.8,0.0],[1.0,0.53,0.0]]     // fire
+];
+
+const whispers = [
+  "the knot folds itself", "you are the curve", "the loop sees itself coming",
+  "everything connects", "the network knows you", "softness as a force",
+  "you have been here always", "the threads conspire kindly",
+  "form before name", "the room behind seeing", "no edges anywhere",
+  "presences acknowledge presence", "the field hums",
+  "spores of memory", "veins of light remembering",
+  "the trefoil is a question with three answers"
+];
+
+// ──────────────────────────────────────────────────────────
+// PARAMETRIC SPINE CURVES — 3D
+// All return THREE.Vector3 for a given f in [0,1]
+// ──────────────────────────────────────────────────────────
+function breathe(t){ return 1 + Math.sin(t*0.5) * 0.15 * state.breathe; }
+
+const spineFns = {
+  trefoil: (f, t) => {
+    const a = f * Math.PI * 2;
+    const R = state.loopR * breathe(t) * 0.4;
+    return new THREE.Vector3(
+      (Math.sin(a) + 2*Math.sin(2*a)) * R,
+      (Math.cos(a) - 2*Math.cos(2*a)) * R,
+      -Math.sin(3*a) * R
+    );
+  },
+  figure8: (f, t) => {
+    const a = f * Math.PI * 2;
+    const R = state.loopR * breathe(t);
+    return new THREE.Vector3(
+      Math.sin(a) * R,
+      Math.sin(2*a) * R * 0.5,
+      Math.cos(a) * R * 0.3
+    );
+  },
+  torus: (f, t) => {
+    // (2,3) torus knot
+    const a = f * Math.PI * 2;
+    const R = state.loopR * breathe(t) * 0.5;
+    const p = 2, q = 3;
+    const r = 2 + Math.cos(q*a);
+    return new THREE.Vector3(
+      r * Math.cos(p*a) * R * 0.5,
+      r * Math.sin(p*a) * R * 0.5,
+      Math.sin(q*a) * R * 0.6
+    );
+  },
+  knot41: (f, t) => {
+    // Figure-eight knot 4_1
+    const a = f * Math.PI * 2;
+    const R = state.loopR * breathe(t) * 0.35;
+    return new THREE.Vector3(
+      (2 + Math.cos(2*a)) * Math.cos(3*a) * R * 0.5,
+      (2 + Math.cos(2*a)) * Math.sin(3*a) * R * 0.5,
+      Math.sin(4*a) * R * 0.7
+    );
+  },
+  rose: (f, t) => {
+    const a = f * Math.PI * 2;
+    const k = 4; // 4-petal rose
+    const R = state.loopR * breathe(t);
+    const r = Math.cos(k*a) * R;
+    return new THREE.Vector3(
+      r * Math.cos(a),
+      r * Math.sin(a),
+      Math.sin(2*a) * R * 0.3
+    );
+  },
+  helix: (f, t) => {
+    const a = f * Math.PI * 4;
+    const R = state.loopR * breathe(t) * 0.4;
+    return new THREE.Vector3(
+      Math.cos(a) * R,
+      Math.sin(a) * R,
+      (f - 0.5) * state.loopR * 1.5
+    );
+  },
+  viviani: (f, t) => {
+    // Viviani's curve — intersection of sphere & cylinder
+    const a = f * Math.PI * 2;
+    const R = state.loopR * breathe(t) * 0.6;
+    return new THREE.Vector3(
+      R * (1 + Math.cos(a)) * 0.5,
+      R * Math.sin(a) * 0.5,
+      R * Math.sin(a/2)
+    );
+  },
+  circle: (f, t) => {
+    const a = f * Math.PI * 2;
+    const R = state.loopR * breathe(t) * 0.5;
+    return new THREE.Vector3(
+      Math.cos(a) * R,
+      Math.sin(a) * R,
+      0
+    );
+  }
+};
+
+function spineAt(f, t){
+  const fn = spineFns[state.path] || spineFns.trefoil;
+  // Wrap f to [0,1)
+  f = ((f % 1) + 1) % 1;
+  return fn(f, t);
+}
+
+// Compute orthonormal frame at point f (position, forward, normal, binormal)
+function frameAt(f, t){
+  const eps = 0.002;
+  const p = spineAt(f, t);
+  const p2 = spineAt(f + eps, t);
+  const forward = p2.clone().sub(p).normalize();
+  // Pick a stable "up" reference and compute binormal/normal
+  let up = new THREE.Vector3(0, 1, 0);
+  if(Math.abs(forward.dot(up)) > 0.95) up = new THREE.Vector3(1, 0, 0);
+  const right = new THREE.Vector3().crossVectors(forward, up).normalize();
+  const realUp = new THREE.Vector3().crossVectors(right, forward).normalize();
+  return { p, forward, right, up: realUp };
+}
+
+// ──────────────────────────────────────────────────────────
+// VEIN TUBE — TubeGeometry with custom shader for vein effect
+// ──────────────────────────────────────────────────────────
+class TubeCurve extends THREE.Curve {
+  constructor(){ super(); this.evalT = 0; }
+  getPoint(f, target = new THREE.Vector3()){
+    const p = spineAt(f, this.evalT);
+    target.copy(p);
+    return target;
+  }
+}
+const tubeCurve = new TubeCurve();
+tubeCurve.closed = true;
+
+const veinVert = `
+varying vec3 vWorld;
+varying vec3 vNormal;
+varying vec2 vUv;
+varying float vDepth;
+
+void main(){
+  vUv = uv;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vWorld = position;
+  vNormal = normalize(normalMatrix * normal);
+  vDepth = -mv.z;
+  gl_Position = projectionMatrix * mv;
+}
+`;
+
+const veinFrag = `
+precision highp float;
+varying vec3 vWorld;
+varying vec3 vNormal;
+varying vec2 vUv;
+varying float vDepth;
+
+uniform float uTime;
+uniform float uWspd;
+uniform float uIrid;
+uniform float uHue;
+uniform float uBri;
+uniform float uGlow;
+uniform float uOpacity;
+uniform vec3  uColA, uColB, uColC;
+
+vec3 hsv2rgb(vec3 c){
+  vec3 p = abs(fract(c.xxx + vec3(0.0, 2.0/3.0, 1.0/3.0))*6.0-3.0);
+  return c.z * mix(vec3(1.0), clamp(p-1.0, 0.0, 1.0), c.y);
+}
+mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float noise2(vec2 p){
+  vec2 i=floor(p), f=fract(p);
+  vec2 u=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i), hash(i+vec2(1,0)), u.x),
+             mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y);
+}
+float fbm(vec2 p){
+  float v=0.0, a=0.5;
+  for(int i=0;i<5;i++){ v+=a*noise2(p); p=rot(0.5)*p*2.0; a*=0.5; }
+  return v;
+}
+
+void main(){
+  // UV.x = around tube, UV.y = along tube
+  vec2 wall = vec2(vUv.x * 6.0, vUv.y * 20.0);
+  
+  // Multi-scale vein network — the classic capillary look
+  float n1 = fbm(wall * 2.0 + uTime * 0.2 * uWspd);
+  float n2 = fbm(wall * 4.0 - uTime * 0.15 * uWspd);
+  float n3 = fbm(wall * 8.0 + uTime * 0.4 * uWspd);
+  
+  float v1 = 1.0 - smoothstep(0.0, 0.04, abs(n1 - 0.5));
+  float v2 = 1.0 - smoothstep(0.0, 0.05, abs(n2 - 0.5));
+  float v3 = 1.0 - smoothstep(0.0, 0.07, abs(n3 - 0.5));
+  float vein = v1 + v2*0.6 + v3*0.3;
+  
+  // Base flesh color
+  vec3 base = mix(uColA, uColB, n1);
+  base = mix(base, uColC, n2 * 0.6);
+  base *= 0.3;
+  
+  // Vein color cycling along the tube
+  float h = fract(n1*0.5 + uTime*0.08*uHue + vUv.y * 0.3);
+  vec3 vc = hsv2rgb(vec3(h, 0.85, 1.0));
+  
+  vec3 col = base + vc * vein * uIrid * 1.4;
+  
+  // Pulse along the veins — heartbeat
+  col += vc * vein * sin(uTime*3.0 + n1*12.0 + vUv.y * 10.0) * 0.3 * uGlow;
+  
+  // Fresnel-style edge highlight for depth
+  float fres = pow(1.0 - max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.0);
+  col += vc * fres * 0.3 * uGlow;
+  
+  // Brightness control
+  col *= uBri;
+  
+  gl_FragColor = vec4(col, uOpacity);
+}
+`;
+
+let tubeMesh = null;
+const tubeMat = new THREE.ShaderMaterial({
+  vertexShader: veinVert,
+  fragmentShader: veinFrag,
+  transparent: true,
+  side: THREE.DoubleSide,
+  depthWrite: false,
+  uniforms: {
+    uTime: {value:0}, uWspd:{value:1.0}, uIrid:{value:1.3},
+    uHue:{value:1.0}, uBri:{value:1.0}, uGlow:{value:0.8},
+    uOpacity:{value:0.65},
+    uColA:{value:new THREE.Vector3(...palettes[0][0])},
+    uColB:{value:new THREE.Vector3(...palettes[0][1])},
+    uColC:{value:new THREE.Vector3(...palettes[0][2])}
+  }
+});
+
+function rebuildTube(){
+  if(tubeMesh){
+    scene.remove(tubeMesh);
+    tubeMesh.geometry.dispose();
+  }
+  // Build TubeGeometry — Three's TubeGeometry samples the curve and creates frenet frames
+  const segs = Math.floor(state.detail);
+  const radSegs = 24;
+  const geo = new THREE.TubeGeometry(tubeCurve, segs, state.tubeR, radSegs, true);
+  tubeMesh = new THREE.Mesh(geo, tubeMat);
+  tubeMesh.visible = state.layers.tube;
+  scene.add(tubeMesh);
+}
+rebuildTube();
+
+// Palette interpolation
+const curPal = palettes[0].map(c => new THREE.Vector3(...c));
+const tgtPal = palettes[0].map(c => new THREE.Vector3(...c));
+function setPalette(idx){
+  state.paletteIdx = ((idx % palettes.length) + palettes.length) % palettes.length;
+  palettes[state.paletteIdx].forEach((c, i) => tgtPal[i].set(...c));
+  document.querySelectorAll('[data-pal]').forEach(sw => sw.classList.remove('on'));
+  const sw = document.querySelector('[data-pal="'+state.paletteIdx+'"]');
+  if(sw) sw.classList.add('on');
+}
+function getPalCol(idx){
+  const v = curPal[idx % 3];
+  return new THREE.Color(v.x, v.y, v.z);
+}
+
+// ──────────────────────────────────────────────────────────
+// 4D POLYTOPE PRESENCES — drift along the spine
+// ──────────────────────────────────────────────────────────
+function rotate4D(p, t){
+  const cw=Math.cos(t), sw=Math.sin(t);
+  const cz=Math.cos(t*0.7), sz=Math.sin(t*0.7);
+  const cy=Math.cos(t*0.5), sy=Math.sin(t*0.5);
+  let x=p[0]*cw-p[3]*sw, w=p[0]*sw+p[3]*cw;
+  let y=p[1]*cz-p[2]*sz, z=p[1]*sz+p[2]*cz;
+  let x2=x*cy-y*sy, y2=x*sy+y*cy;
+  return [x2,y2,z,w];
+}
+function project4(p){ const d=3.5; const k=d/(d-p[3]); return [p[0]*k, p[1]*k, p[2]*k]; }
+function buildTesseract(){
+  const v=[]; for(let i=0;i<16;i++) v.push([(i&1)?1:-1,(i&2)?1:-1,(i&4)?1:-1,(i&8)?1:-1]);
+  const e=[]; for(let i=0;i<16;i++) for(let j=i+1;j<16;j++){let d=0;for(let k=0;k<4;k++)if(v[i][k]!==v[j][k])d++;if(d===1)e.push([i,j]);}
+  return {verts:v, edges:e};
+}
+function build5Cell(){
+  const s=1/Math.sqrt(5);
+  return {verts:[[1,1,1,-s],[1,-1,-1,-s],[-1,1,-1,-s],[-1,-1,1,-s],[0,0,0,4*s]],
+    edges:(()=>{const e=[];for(let i=0;i<5;i++) for(let j=i+1;j<5;j++) e.push([i,j]);return e;})()};
+}
+function buildCross(){
+  const v=[[1,0,0,0],[-1,0,0,0],[0,1,0,0],[0,-1,0,0],[0,0,1,0],[0,0,-1,0],[0,0,0,1],[0,0,0,-1]];
+  const e=[];
+  for(let i=0;i<8;i++) for(let j=i+1;j<8;j++){
+    let opp=true; for(let k=0;k<4;k++) if(v[i][k]!==-v[j][k]) opp=false;
+    if(!opp) e.push([i,j]);
+  }
+  return {verts:v, edges:e};
+}
+function buildIcosa(){
+  const phi=(1+Math.sqrt(5))/2;
+  const v3=[[-1,phi,0],[1,phi,0],[-1,-phi,0],[1,-phi,0],[0,-1,phi],[0,1,phi],[0,-1,-phi],[0,1,-phi],[phi,0,-1],[phi,0,1],[-phi,0,-1],[-phi,0,1]];
+  const v=v3.map(p=>[p[0]/phi,p[1]/phi,p[2]/phi,0]);
+  const e=[];
+  for(let i=0;i<12;i++) for(let j=i+1;j<12;j++){
+    let d=0; for(let k=0;k<4;k++) d+=(v[i][k]-v[j][k])**2;
+    if(d<2.5) e.push([i,j]);
+  }
+  return {verts:v, edges:e};
+}
+const polyDefs = { tesseract:buildTesseract(), cell5:build5Cell(), cross:buildCross(), icosa:buildIcosa() };
+const polyTypes = Object.keys(polyDefs);
+const MAX_EDGES = Math.max(...polyTypes.map(k => polyDefs[k].edges.length));
+
+class Presence4D {
+  constructor(){
+    this.geo = new THREE.BufferGeometry();
+    this.geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_EDGES*6), 3));
+    this.mat = new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false});
+    this.mesh = new THREE.LineSegments(this.geo, this.mat);
+    this.respawn();
+    scene.add(this.mesh);
+  }
+  respawn(){
+    this.type = polyTypes[Math.floor(Math.random()*polyTypes.length)];
+    this.def = polyDefs[this.type];
+    this.spinSeed = Math.random()*Math.PI*2;
+    this.spinSpeed = 0.2 + Math.random()*0.8;
+    this.scale = 0.4 + Math.random()*1.4;
+    this.colIdx = Math.floor(Math.random()*3);
+    // Position along spine parameter + offset perpendicular to spine
+    this.spineF = Math.random();
+    this.driftSpeed = 0.005 + Math.random() * 0.02;
+    this.offsetAng = Math.random() * Math.PI * 2;
+    this.offsetDist = (state.tubeR + 0.5) + Math.random() * 4;  // outside tube radius
+  }
+  update(t, dt){
+    // Drift along spine
+    this.spineF = (this.spineF + dt * this.driftSpeed) % 1;
+    
+    const frame = frameAt(this.spineF, t);
+    // Position perpendicular to spine using frame.right and frame.up
+    const ca = Math.cos(this.offsetAng + t * 0.1);
+    const sa = Math.sin(this.offsetAng + t * 0.1);
+    const offset = frame.right.clone().multiplyScalar(ca * this.offsetDist)
+      .add(frame.up.clone().multiplyScalar(sa * this.offsetDist));
+    this.mesh.position.copy(frame.p).add(offset);
+    
+    // Scale by camera distance for "passing by" feel
+    const distFromCam = this.mesh.position.distanceTo(camera.position);
+    const proximity = Math.max(0, 1.0 - distFromCam / 30);
+    this.mesh.scale.setScalar(this.scale * state.p4dSz * (0.5 + proximity * 0.6));
+    
+    // 4D rotation
+    const angle = this.spinSeed + t * this.spinSpeed * state.p4dRot;
+    const positions = this.geo.attributes.position.array;
+    const edges = this.def.edges;
+    const verts = this.def.verts;
+    const transformed = verts.map(v => project4(rotate4D(v, angle)));
+    for(let i=0;i<edges.length;i++){
+      const pa = transformed[edges[i][0]];
+      const pb = transformed[edges[i][1]];
+      const o = i*6;
+      positions[o] = pa[0]; positions[o+1] = pa[1]; positions[o+2] = pa[2];
+      positions[o+3] = pb[0]; positions[o+4] = pb[1]; positions[o+5] = pb[2];
+    }
+    for(let i=edges.length*6;i<positions.length;i++) positions[i] = 0;
+    this.geo.attributes.position.needsUpdate = true;
+    this.geo.setDrawRange(0, edges.length*2);
+    
+    const c = getPalCol(this.colIdx);
+    this.mat.color.copy(c).multiplyScalar(0.7 + proximity * 0.6);
+    this.mat.opacity = (0.35 + proximity*0.65) * state.opacity.p4d;
+  }
+  dispose(){ scene.remove(this.mesh); this.geo.dispose(); this.mat.dispose(); }
+}
+
+let presences = [];
+function rebuildPresences(){
+  presences.forEach(p => p.dispose());
+  presences = [];
+  for(let i=0;i<state.p4d;i++) presences.push(new Presence4D());
+  presences.forEach(p => p.mesh.visible = state.layers.polytopes);
+}
+rebuildPresences();
+
+// ──────────────────────────────────────────────────────────
+// MYCELIUM NETWORK — nodes drift along the spine
+// ──────────────────────────────────────────────────────────
+class MyceliumNet {
+  constructor(){
+    this.group = new THREE.Group();
+    scene.add(this.group);
+    
+    this.nodesGeo = new THREE.BufferGeometry();
+    this.nodesMat = new THREE.PointsMaterial({
+      size: 0.16, vertexColors:true, transparent:true, opacity:1.0,
+      blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+    });
+    this.nodesMesh = new THREE.Points(this.nodesGeo, this.nodesMat);
+    this.group.add(this.nodesMesh);
+    
+    this.MAX_EDGES = 800;
+    this.edgesGeo = new THREE.BufferGeometry();
+    this.edgesGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.MAX_EDGES*6), 3));
+    this.edgesGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(this.MAX_EDGES*6), 3));
+    this.edgesMat = new THREE.LineBasicMaterial({
+      vertexColors:true, transparent:true, opacity:1.0,
+      blending:THREE.AdditiveBlending, depthWrite:false
+    });
+    this.edgesMesh = new THREE.LineSegments(this.edgesGeo, this.edgesMat);
+    this.group.add(this.edgesMesh);
+    
+    this.MAX_PULSES = 100;
+    this.pulsesGeo = new THREE.BufferGeometry();
+    this.pulsesGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.MAX_PULSES*3), 3));
+    this.pulsesGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(this.MAX_PULSES*3), 3));
+    this.pulsesMat = new THREE.PointsMaterial({
+      size:0.36, vertexColors:true, transparent:true, opacity:1.0,
+      blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+    });
+    this.pulsesMesh = new THREE.Points(this.pulsesGeo, this.pulsesMat);
+    this.group.add(this.pulsesMesh);
+    
+    this.nodes = [];
+    this.pulses = [];
+    this.rebuild();
+  }
+  rebuild(){
+    this.nodes = [];
+    const count = state.myc;
+    const posArr = new Float32Array(count*3);
+    const colArr = new Float32Array(count*3);
+    for(let i=0;i<count;i++){
+      const n = {
+        spineF: Math.random(),
+        offsetAng: Math.random() * Math.PI * 2,
+        offsetDist: (state.tubeR + 0.4) + Math.random() * 3.5 * state.mspr,
+        phase: Math.random()*Math.PI*2,
+        col: Math.floor(Math.random()*3),
+        seed: Math.random(),
+        driftSpeed: 0.002 + Math.random() * 0.01
+      };
+      this.nodes.push(n);
+      // initial positions filled in update
+      posArr[i*3] = 0; posArr[i*3+1] = 0; posArr[i*3+2] = 0;
+      const c = palettes[state.paletteIdx][n.col];
+      colArr[i*3] = c[0]; colArr[i*3+1] = c[1]; colArr[i*3+2] = c[2];
+    }
+    this.nodesGeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+    this.nodesGeo.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+    this.pulses = [];
+  }
+  spawnPulse(){
+    if(!this._lastConnections || this._lastConnections.length === 0) return;
+    if(this.pulses.length >= this.MAX_PULSES) return;
+    const [a, b] = this._lastConnections[Math.floor(Math.random() * this._lastConnections.length)];
+    this.pulses.push({fromIdx: a, toIdx: b, t: 0, speed: 0.5 + Math.random()*1.2, colIdx: Math.floor(Math.random()*3)});
+  }
+  update(t, dt){
+    if(this.nodes.length === 0) return;
+    
+    const nodePos = this.nodesGeo.attributes.position.array;
+    const nodeCol = this.nodesGeo.attributes.color.array;
+    
+    // Update each node's world position from its spine parameter + offset
+    for(let i=0;i<this.nodes.length;i++){
+      const n = this.nodes[i];
+      n.spineF = (n.spineF + dt * n.driftSpeed) % 1;
+      // breathing offset distance
+      n.offsetAng += dt * 0.05;
+      
+      const frame = frameAt(n.spineF, t);
+      const ca = Math.cos(n.offsetAng);
+      const sa = Math.sin(n.offsetAng);
+      const wx = frame.p.x + (frame.right.x * ca + frame.up.x * sa) * n.offsetDist;
+      const wy = frame.p.y + (frame.right.y * ca + frame.up.y * sa) * n.offsetDist;
+      const wz = frame.p.z + (frame.right.z * ca + frame.up.z * sa) * n.offsetDist;
+      
+      // Cache world pos for connections
+      n.wx = wx; n.wy = wy; n.wz = wz;
+      nodePos[i*3] = wx;
+      nodePos[i*3+1] = wy;
+      nodePos[i*3+2] = wz;
+      
+      // Pulse color brightness
+      const pulse = 0.8 + 0.5 * (0.5 + 0.5*Math.sin(t*state.mpls*2.0 + n.phase));
+      const c = palettes[state.paletteIdx][n.col];
+      nodeCol[i*3]   = c[0] * pulse * 1.4;
+      nodeCol[i*3+1] = c[1] * pulse * 1.4;
+      nodeCol[i*3+2] = c[2] * pulse * 1.4;
+    }
+    this.nodesGeo.attributes.position.needsUpdate = true;
+    this.nodesGeo.attributes.color.needsUpdate = true;
+    this.nodesMat.size = 0.16 + 0.08*Math.sin(t*2.0);
+    
+    // Build connections — only between nearby nodes (in 3D world space)
+    const range = state.mrng * 4.0;
+    const rangeSq = range * range;
+    const edgePos = this.edgesGeo.attributes.position.array;
+    const edgeCol = this.edgesGeo.attributes.color.array;
+    let edgeCount = 0;
+    const connections = [];
+    const N = this.nodes.length;
+    
+    for(let i=0;i<N && edgeCount<this.MAX_EDGES;i++){
+      const a = this.nodes[i];
+      for(let j=i+1;j<N && edgeCount<this.MAX_EDGES;j++){
+        const b = this.nodes[j];
+        const dx = a.wx - b.wx;
+        const dy = a.wy - b.wy;
+        const dz = a.wz - b.wz;
+        const dSq = dx*dx + dy*dy + dz*dz;
+        if(dSq < rangeSq){
+          const d = Math.sqrt(dSq);
+          const strength = 1.0 - d / range;
+          const o = edgeCount * 6;
+          edgePos[o]   = a.wx; edgePos[o+1] = a.wy; edgePos[o+2] = a.wz;
+          edgePos[o+3] = b.wx; edgePos[o+4] = b.wy; edgePos[o+5] = b.wz;
+          const ca = palettes[state.paletteIdx][a.col];
+          const cb = palettes[state.paletteIdx][b.col];
+          const flicker = 0.6 + 0.6 * Math.sin(t*state.mpls*1.5 + a.phase + b.phase);
+          const intensity = strength * (0.7 + 0.8 * flicker) * 1.4;
+          edgeCol[o] = ca[0]*intensity; edgeCol[o+1] = ca[1]*intensity; edgeCol[o+2] = ca[2]*intensity;
+          edgeCol[o+3] = cb[0]*intensity; edgeCol[o+4] = cb[1]*intensity; edgeCol[o+5] = cb[2]*intensity;
+          connections.push([i, j]);
+          edgeCount++;
+        }
+      }
+    }
+    for(let i=edgeCount*6;i<edgePos.length;i++){ edgePos[i] = 0; edgeCol[i] = 0; }
+    this.edgesGeo.attributes.position.needsUpdate = true;
+    this.edgesGeo.attributes.color.needsUpdate = true;
+    this.edgesGeo.setDrawRange(0, edgeCount*2);
+    this._lastConnections = connections;
+    
+    // Spawn pulses
+    if(Math.random() < dt * 6 * state.mpls) this.spawnPulse();
+    
+    // Update pulses
+    const pulsePos = this.pulsesGeo.attributes.position.array;
+    const pulseColArr = this.pulsesGeo.attributes.color.array;
+    for(let i=0;i<this.MAX_PULSES;i++){
+      pulsePos[i*3] = 99999; pulsePos[i*3+1] = 99999; pulsePos[i*3+2] = 99999;
+      pulseColArr[i*3] = 0; pulseColArr[i*3+1] = 0; pulseColArr[i*3+2] = 0;
+    }
+    let alive = [];
+    for(const p of this.pulses){
+      p.t += dt * p.speed * state.mpls;
+      if(p.t >= 1 || p.fromIdx >= this.nodes.length || p.toIdx >= this.nodes.length) continue;
+      alive.push(p);
+    }
+    this.pulses = alive;
+    for(let i=0;i<this.pulses.length && i<this.MAX_PULSES;i++){
+      const p = this.pulses[i];
+      const a = this.nodes[p.fromIdx];
+      const b = this.nodes[p.toIdx];
+      if(!a || !b) continue;
+      const tt = p.t;
+      pulsePos[i*3]   = a.wx + (b.wx-a.wx)*tt;
+      pulsePos[i*3+1] = a.wy + (b.wy-a.wy)*tt;
+      pulsePos[i*3+2] = a.wz + (b.wz-a.wz)*tt;
+      const c = palettes[state.paletteIdx][p.colIdx];
+      const bri = Math.sin(tt * Math.PI);
+      pulseColArr[i*3] = c[0]*(0.8+bri*1.5); pulseColArr[i*3+1] = c[1]*(0.8+bri*1.5); pulseColArr[i*3+2] = c[2]*(0.8+bri*1.5);
+    }
+    this.pulsesGeo.attributes.position.needsUpdate = true;
+    this.pulsesGeo.attributes.color.needsUpdate = true;
+    this.pulsesMat.size = 0.32 + 0.16*Math.sin(t*4);
+    
+    // Apply opacity to whole network
+    this.nodesMat.opacity = state.opacity.myc;
+    this.edgesMat.opacity = state.opacity.myc;
+    this.pulsesMat.opacity = state.opacity.myc;
+  }
+  dispose(){
+    scene.remove(this.group);
+    this.nodesGeo.dispose(); this.nodesMat.dispose();
+    this.edgesGeo.dispose(); this.edgesMat.dispose();
+    this.pulsesGeo.dispose(); this.pulsesMat.dispose();
+  }
+  setVisible(v){ this.nodesMesh.visible = v; this.edgesMesh.visible = v; this.pulsesMesh.visible = v; }
+}
+
+let myc = new MyceliumNet();
+myc.setVisible(state.layers.mycelium);
+
+// ──────────────────────────────────────────────────────────
+// BUBBLES — drift inside the tube
+// ──────────────────────────────────────────────────────────
+let bubbles;
+function buildBubbles(){
+  if(bubbles){ scene.remove(bubbles); bubbles.geometry.dispose(); bubbles.material.dispose(); }
+  if(state.bub === 0){ bubbles = null; return; }
+  const count = state.bub;
+  const positions = new Float32Array(count*3);
+  const colors = new Float32Array(count*3);
+  const data = [];
+  for(let i=0;i<count;i++){
+    data.push({
+      spineF: Math.random(),
+      offsetAng: Math.random()*Math.PI*2,
+      offsetR: Math.random() * state.tubeR * 0.85,
+      seed: Math.random(),
+      col: Math.floor(Math.random()*3),
+      driftSpeed: 0.04 + Math.random()*0.1
+    });
+    positions[i*3] = 0; positions[i*3+1] = 0; positions[i*3+2] = 0;
+    const c = palettes[state.paletteIdx][data[i].col];
+    colors[i*3] = c[0]; colors[i*3+1] = c[1]; colors[i*3+2] = c[2];
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  g.userData = {data, count};
+  const m = new THREE.PointsMaterial({
+    size:0.08*state.bsz, vertexColors:true, transparent:true, opacity:0.9,
+    blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+  });
+  bubbles = new THREE.Points(g, m);
+  bubbles.visible = state.layers.bubbles;
+  scene.add(bubbles);
+}
+buildBubbles();
+
+// ──────────────────────────────────────────────────────────
+// PLANETS — orbs orbiting anchor points along the spine
+// ──────────────────────────────────────────────────────────
+class PlanetSystem {
+  constructor(){
+    this.group = new THREE.Group();
+    this.planets = [];
+    scene.add(this.group);
+    this.rebuild();
+  }
+  rebuild(){
+    // Clear
+    for(const p of this.planets){
+      this.group.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      if(p.ring){
+        this.group.remove(p.ring);
+        p.ring.geometry.dispose();
+        p.ring.material.dispose();
+      }
+      if(p.halo){
+        this.group.remove(p.halo);
+        p.halo.geometry.dispose();
+        p.halo.material.dispose();
+      }
+    }
+    this.planets = [];
+    const count = state.plnt;
+    for(let i=0; i<count; i++){
+      const colIdx = Math.floor(Math.random()*3);
+      const c = palettes[state.paletteIdx][colIdx];
+      const baseRadius = 0.18 + Math.random()*0.32;
+      // Sphere with simple shaded material — emissive so it glows
+      const geom = new THREE.SphereGeometry(baseRadius, 18, 14);
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(c[0], c[1], c[2]),
+        emissive: new THREE.Color(c[0]*0.8, c[1]*0.8, c[2]*0.8),
+        emissiveIntensity: 0.6,
+        roughness: 0.35,
+        metalness: 0.15,
+        transparent: true,
+        opacity: 0.95
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      this.group.add(mesh);
+
+      // Soft halo billboard sprite
+      const haloMat = new THREE.SpriteMaterial({
+        color: new THREE.Color(c[0], c[1], c[2]),
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false
+      });
+      const halo = new THREE.Sprite(haloMat);
+      halo.scale.set(baseRadius*4, baseRadius*4, 1);
+      this.group.add(halo);
+
+      // Maybe ring
+      let ring = null;
+      if(Math.random() < state.plntRng){
+        const ringGeom = new THREE.RingGeometry(baseRadius*1.6, baseRadius*2.4, 48, 1);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: new THREE.Color(c[0]*1.2, c[1]*1.2, c[2]*1.2),
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.55,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        ring = new THREE.Mesh(ringGeom, ringMat);
+        this.group.add(ring);
+      }
+
+      this.planets.push({
+        mesh, halo, ring,
+        baseRadius,
+        anchorF: Math.random(),                 // anchor point along spine [0,1]
+        anchorDrift: (Math.random()-0.5)*0.04,  // slow drift of anchor
+        orbitR: 0.6 + Math.random()*1.2,        // base orbit radius
+        orbitAng: Math.random()*Math.PI*2,
+        orbitSpd: 0.3 + Math.random()*0.9,
+        tiltAng: Math.random()*Math.PI*2,       // tilt of orbit plane
+        tiltAxis: Math.random()*Math.PI*2,
+        spinSpd: 0.5 + Math.random()*2,
+        colIdx,
+        pulsePhase: Math.random()*Math.PI*2
+      });
+    }
+  }
+  setVisible(v){ this.group.visible = v; }
+  update(t, dt){
+    const speedMul = state.plntSpd;
+    const rMul = state.plntR;
+    const szMul = state.plntSz;
+    for(const p of this.planets){
+      // Drift anchor slowly so planets aren't locked to one place
+      p.anchorF = (p.anchorF + dt * p.anchorDrift + 1) % 1;
+      p.orbitAng += dt * p.orbitSpd * speedMul;
+
+      // Anchor frame on spine
+      const frame = frameAt(p.anchorF, t);
+
+      // Orbit in a tilted plane around the anchor
+      const r = p.orbitR * rMul;
+      const ca = Math.cos(p.orbitAng);
+      const sa = Math.sin(p.orbitAng);
+
+      // Tilt the orbit plane: build a tilted basis from the spine frame
+      const tiltAxis = new THREE.Vector3(
+        Math.cos(p.tiltAxis), 0, Math.sin(p.tiltAxis)
+      );
+      const right = frame.right.clone();
+      const up = frame.up.clone();
+      // Rotate up around right axis by tiltAng for orbital inclination
+      const tiltedUp = up.clone().applyAxisAngle(frame.forward, p.tiltAng);
+      const tiltedRight = right.clone().applyAxisAngle(frame.forward, p.tiltAng);
+
+      const pos = frame.p.clone()
+        .add(tiltedRight.multiplyScalar(ca * r))
+        .add(tiltedUp.multiplyScalar(sa * r));
+
+      p.mesh.position.copy(pos);
+      p.mesh.rotation.y += dt * p.spinSpd;
+      p.mesh.rotation.x += dt * p.spinSpd * 0.4;
+      p.mesh.scale.setScalar(szMul);
+
+      // Halo follows
+      p.halo.position.copy(pos);
+      p.halo.scale.set(p.baseRadius*4*szMul, p.baseRadius*4*szMul, 1);
+
+      // Color + glow update from current palette
+      const c = palettes[state.paletteIdx][p.colIdx];
+      const pulse = 0.7 + 0.3 * Math.sin(t*2 + p.pulsePhase);
+      p.mesh.material.color.setRGB(c[0], c[1], c[2]);
+      p.mesh.material.emissive.setRGB(c[0]*0.8, c[1]*0.8, c[2]*0.8);
+      p.mesh.material.emissiveIntensity = 0.4 + state.plntGlow * pulse;
+      p.mesh.material.opacity = 0.95 * state.opacity.plnt;
+
+      p.halo.material.color.setRGB(c[0], c[1], c[2]);
+      p.halo.material.opacity = 0.5 * state.plntGlow * pulse * state.opacity.plnt;
+
+      if(p.ring){
+        p.ring.position.copy(pos);
+        // Ring oriented along tilted basis
+        p.ring.lookAt(pos.clone().add(frame.forward));
+        p.ring.rotation.z += dt * 0.2;
+        p.ring.material.color.setRGB(c[0]*1.2, c[1]*1.2, c[2]*1.2);
+        p.ring.material.opacity = 0.55 * state.opacity.plnt;
+        p.ring.scale.setScalar(szMul);
+      }
+    }
+  }
+}
+let planets = new PlanetSystem();
+planets.setVisible(state.layers.planets);
+
+// ──────────────────────────────────────────────────────────
+// CIRCULAR SPRITE TEXTURE — used by particles to render as round dots, not squares
+// ──────────────────────────────────────────────────────────
+function makeCircularTexture(size = 128){
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const cx = size/2, cy = size/2;
+  // Radial gradient: bright opaque center, fades to transparent edge for soft glow
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size/2);
+  grad.addColorStop(0.00, 'rgba(255,255,255,1.0)');
+  grad.addColorStop(0.25, 'rgba(255,255,255,0.85)');
+  grad.addColorStop(0.55, 'rgba(255,255,255,0.30)');
+  grad.addColorStop(1.00, 'rgba(255,255,255,0.00)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
+}
+const CIRCLE_TEX = makeCircularTexture(128);
+const CIRCLE_TEX_HARD = (() => {
+  // Hotter center for fireworks
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(64,64,0, 64,64,64);
+  grad.addColorStop(0.00, 'rgba(255,255,255,1.0)');
+  grad.addColorStop(0.15, 'rgba(255,255,255,0.95)');
+  grad.addColorStop(0.40, 'rgba(255,255,255,0.55)');
+  grad.addColorStop(1.00, 'rgba(255,255,255,0.00)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
+})();
+
+// Upgrade existing bubble material to use circular sprites — gets called once on the current bubbles instance.
+// We can't reassign the declared buildBubbles in strict mode, so we instead patch the material every time
+// from a hook in the animate loop (cheap check).
+function patchBubbleMaterial(){
+  if(bubbles && bubbles.material && bubbles.material.map !== CIRCLE_TEX){
+    bubbles.material.map = CIRCLE_TEX;
+    bubbles.material.alphaTest = 0.01;
+    bubbles.material.needsUpdate = true;
+  }
+}
+patchBubbleMaterial();
+
+// ──────────────────────────────────────────────────────────
+// PARTICLE COLLIDER — round electrons with proper trails, collisions, firework bursts
+// ──────────────────────────────────────────────────────────
+class ColliderSystem {
+  constructor(){
+    this.group = new THREE.Group();
+    scene.add(this.group);
+    this.nucleusPoints = null;
+    this.electrons = null;
+    this.electronData = [];
+    this.trailMesh = null;
+    this.fireworks = null;
+    this.fireworkData = [];   // active sparks
+    this.maxFireworks = 3000; // hard cap on spark particles
+    this.fwHead = 0;          // ring buffer head
+    this.collisionCooldown = 0;
+    this.nuclei = [];
+    this.rebuild();
+  }
+
+  rebuild(){
+    // Dispose everything
+    while(this.group.children.length){
+      const c = this.group.children.pop();
+      if(c.geometry) c.geometry.dispose();
+      if(c.material){
+        if(Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+        else c.material.dispose();
+      }
+      this.group.remove(c);
+    }
+
+    // ── Nuclei ──
+    this.nuclei = [];
+    const nucCount = state.colNuc;
+    for(let i=0; i<nucCount; i++){
+      this.nuclei.push({
+        anchorF: i / nucCount + Math.random()*0.05,
+        pulsePhase: Math.random()*Math.PI*2
+      });
+    }
+    const nucPos = new Float32Array(nucCount*3);
+    const nucGeom = new THREE.BufferGeometry();
+    nucGeom.setAttribute('position', new THREE.BufferAttribute(nucPos, 3));
+    const nucMat = new THREE.PointsMaterial({
+      color: 0xffeb66,
+      size: 0.7,
+      map: CIRCLE_TEX_HARD,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      sizeAttenuation: true,
+      alphaTest: 0.01
+    });
+    this.nucleusPoints = new THREE.Points(nucGeom, nucMat);
+    this.group.add(this.nucleusPoints);
+
+    // ── Electrons ──
+    const count = state.colC;
+    const trailLen = state.colTrl;
+    this.electronData = [];
+    const ePos = new Float32Array(count*3);
+    const eCol = new Float32Array(count*3);
+    for(let i=0; i<count; i++){
+      const nucIdx = i % Math.max(1, nucCount);
+      const ax = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize();
+      const tmp = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5);
+      const bx = new THREE.Vector3().crossVectors(ax, tmp).normalize();
+      const trail = new Array(trailLen).fill(null).map(() => new THREE.Vector3());
+      this.electronData.push({
+        nucIdx,
+        orbitR: 0.4 + Math.random()*0.9,
+        orbitAng: Math.random()*Math.PI*2,
+        orbitSpd: 1.2 + Math.random()*2.5,
+        axisA: ax,
+        axisB: bx,
+        seed: Math.random(),
+        alive: true,
+        respawnAt: 0,
+        trail,
+        pos: new THREE.Vector3()
+      });
+      const goldMix = Math.random();
+      eCol[i*3] = 1.0;
+      eCol[i*3+1] = 0.85 + goldMix*0.15;
+      eCol[i*3+2] = 0.2 + goldMix*0.3;
+    }
+    const eGeom = new THREE.BufferGeometry();
+    eGeom.setAttribute('position', new THREE.BufferAttribute(ePos, 3));
+    eGeom.setAttribute('color', new THREE.BufferAttribute(eCol, 3));
+    const eMat = new THREE.PointsMaterial({
+      size: 0.22,
+      map: CIRCLE_TEX,
+      vertexColors: true,
+      transparent: true,
+      opacity: 1.0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      sizeAttenuation: true,
+      alphaTest: 0.01
+    });
+    this.electrons = new THREE.Points(eGeom, eMat);
+    this.group.add(this.electrons);
+
+    // ── Trails (line segments, two consecutive trail vertices = one segment) ──
+    // Per electron: (trailLen - 1) segments × 2 vertices × 3 floats
+    const segPerE = Math.max(0, trailLen - 1);
+    const totalSegVerts = count * segPerE * 2;
+    const trailPos = new Float32Array(totalSegVerts * 3);
+    const trailCol = new Float32Array(totalSegVerts * 3);
+    const tGeom = new THREE.BufferGeometry();
+    tGeom.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+    tGeom.setAttribute('color', new THREE.BufferAttribute(trailCol, 3));
+    const tMat = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    this.trailMesh = new THREE.LineSegments(tGeom, tMat);
+    this.trailSegPerE = segPerE;
+    this.group.add(this.trailMesh);
+
+    // ── Fireworks (ring buffer of sparks) ──
+    this.fireworkData = new Array(this.maxFireworks).fill(null).map(() => ({
+      alive: false,
+      pos: new THREE.Vector3(),
+      vel: new THREE.Vector3(),
+      life: 0,
+      maxLife: 1,
+      col: [1, 1, 0.5],
+      sz: 1
+    }));
+    this.fwHead = 0;
+    const fwPos = new Float32Array(this.maxFireworks * 3);
+    const fwCol = new Float32Array(this.maxFireworks * 3);
+    const fwSize = new Float32Array(this.maxFireworks);
+    const fwGeom = new THREE.BufferGeometry();
+    fwGeom.setAttribute('position', new THREE.BufferAttribute(fwPos, 3));
+    fwGeom.setAttribute('color', new THREE.BufferAttribute(fwCol, 3));
+    fwGeom.setAttribute('aSize', new THREE.BufferAttribute(fwSize, 1));
+    // Custom shader for per-particle size + alpha so dying sparks fade properly
+    const fwMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uMap: { value: CIRCLE_TEX_HARD },
+        uOpacity: { value: 1.0 }
+      },
+      vertexShader: `
+        attribute float aSize;
+        varying vec3 vColor;
+        varying float vSize;
+        void main(){
+          vColor = color;
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = aSize * (300.0 / -mv.z);
+          vSize = aSize;
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D uMap;
+        uniform float uOpacity;
+        varying vec3 vColor;
+        varying float vSize;
+        void main(){
+          vec4 tex = texture2D(uMap, gl_PointCoord);
+          if(tex.a < 0.01) discard;
+          gl_FragColor = vec4(vColor * tex.a, tex.a * uOpacity);
+        }
+      `,
+      vertexColors: true,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    this.fireworks = new THREE.Points(fwGeom, fwMat);
+    this.group.add(this.fireworks);
+
+    this.collisionCooldown = 0;
+  }
+
+  setVisible(v){ this.group.visible = v; }
+
+  // Spawn N firework sparks from a 3D position with a color
+  spawnBurst(pos, colorRGB){
+    const N = state.fwCnt;
+    const baseLife = state.fwLife;
+    const baseVel = state.fwVel;
+    const baseSz = state.fwSz;
+    const variation = state.fwVar;
+    for(let k=0; k<N; k++){
+      const slot = this.fireworkData[this.fwHead];
+      this.fwHead = (this.fwHead + 1) % this.maxFireworks;
+      // Random spherical direction
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const speed = baseVel * (0.5 + Math.random());
+      slot.pos.copy(pos);
+      slot.vel.set(
+        Math.sin(phi) * Math.cos(theta) * speed,
+        Math.sin(phi) * Math.sin(theta) * speed,
+        Math.cos(phi) * speed
+      );
+      slot.life = 0;
+      slot.maxLife = baseLife * (0.7 + Math.random() * 0.6);
+      slot.sz = baseSz * (0.6 + Math.random() * 0.8);
+      // Color: base color + random palette tint based on variation
+      const palCol = palettes[state.paletteIdx][Math.floor(Math.random()*3)];
+      const r = colorRGB[0] * (1-variation) + palCol[0] * variation;
+      const g = colorRGB[1] * (1-variation) + palCol[1] * variation;
+      const b = colorRGB[2] * (1-variation) + palCol[2] * variation;
+      // Boost brightness for early life
+      slot.col[0] = r;
+      slot.col[1] = g;
+      slot.col[2] = b;
+      slot.alive = true;
+    }
+  }
+
+  update(t, dt){
+    if(!this.electrons) return;
+    const speedMul = state.colSpd;
+    const rMul = state.colR;
+    const trailLen = state.colTrl;
+    const trailWidth = state.colTrlW;
+    const glow = state.colGlow;
+    const opacity = state.opacity.col;
+    const szMul = state.colSz;
+
+    // ── Update nucleus positions from spine ──
+    const nucPos = this.nucleusPoints.geometry.attributes.position.array;
+    const nucleusWorld = [];
+    for(let i=0; i<this.nuclei.length; i++){
+      const n = this.nuclei[i];
+      const frame = frameAt(n.anchorF, t);
+      nucPos[i*3]   = frame.p.x;
+      nucPos[i*3+1] = frame.p.y;
+      nucPos[i*3+2] = frame.p.z;
+      nucleusWorld.push(frame.p.clone());
+    }
+    this.nucleusPoints.geometry.attributes.position.needsUpdate = true;
+    const nucPulse = 0.7 + 0.3 * Math.sin(t*3);
+    this.nucleusPoints.material.size = (0.6 + 0.25*nucPulse) * szMul;
+    this.nucleusPoints.material.opacity = 0.95 * opacity;
+
+    // ── Update electrons + trails ──
+    const ePos = this.electrons.geometry.attributes.position.array;
+    const eCol = this.electrons.geometry.attributes.color.array;
+    const segPerE = this.trailSegPerE;
+    const tPos = this.trailMesh.geometry.attributes.position.array;
+    const tCol = this.trailMesh.geometry.attributes.color.array;
+
+    for(let i=0; i<this.electronData.length; i++){
+      const e = this.electronData[i];
+
+      // Handle respawn after collision
+      if(!e.alive){
+        if(t >= e.respawnAt){
+          e.alive = true;
+          // Reset trail to current point so no streak from old position
+          e.trail.forEach(v => v.copy(e.pos));
+        } else {
+          // Hide the electron + zero its trail while dead
+          ePos[i*3] = ePos[i*3+1] = ePos[i*3+2] = 0;
+          eCol[i*3] = eCol[i*3+1] = eCol[i*3+2] = 0;
+          const start = i * segPerE * 2 * 3;
+          for(let k=0; k<segPerE*2*3; k++){
+            tPos[start + k] = 0;
+            tCol[start + k] = 0;
+          }
+          continue;
+        }
+      }
+
+      const nuc = nucleusWorld[e.nucIdx];
+      if(!nuc) continue;
+
+      e.orbitAng += dt * e.orbitSpd * speedMul;
+      const r = e.orbitR * rMul;
+      const ca = Math.cos(e.orbitAng);
+      const sa = Math.sin(e.orbitAng);
+
+      const x = nuc.x + (e.axisA.x*ca + e.axisB.x*sa) * r;
+      const y = nuc.y + (e.axisA.y*ca + e.axisB.y*sa) * r;
+      const z = nuc.z + (e.axisA.z*ca + e.axisB.z*sa) * r;
+      e.pos.set(x, y, z);
+
+      // Shift trail buffer (drop oldest, append newest at front)
+      for(let k=e.trail.length-1; k>0; k--){
+        e.trail[k].copy(e.trail[k-1]);
+      }
+      e.trail[0].set(x, y, z);
+
+      ePos[i*3] = x; ePos[i*3+1] = y; ePos[i*3+2] = z;
+
+      // Pulse color
+      const pulse = 0.6 + 0.4 * Math.sin(t*8 + e.seed*6.28);
+      const cr = 1.0 * glow * pulse;
+      const cg = (0.85 + e.seed*0.15) * glow * pulse;
+      const cb = (0.2 + e.seed*0.3) * glow * pulse;
+      eCol[i*3]   = cr; eCol[i*3+1] = cg; eCol[i*3+2] = cb;
+
+      // Fill trail segments with fading alpha (head bright, tail dark)
+      const start = i * segPerE * 2 * 3;
+      for(let k=0; k<segPerE; k++){
+        const a = e.trail[k];
+        const b = e.trail[k+1];
+        const off = start + k * 6;
+        tPos[off]   = a.x; tPos[off+1] = a.y; tPos[off+2] = a.z;
+        tPos[off+3] = b.x; tPos[off+4] = b.y; tPos[off+5] = b.z;
+        // Brightness fades along the trail
+        const fadeA = 1 - (k / segPerE);
+        const fadeB = 1 - ((k+1) / segPerE);
+        tCol[off]   = cr * fadeA; tCol[off+1] = cg * fadeA; tCol[off+2] = cb * fadeA;
+        tCol[off+3] = cr * fadeB; tCol[off+4] = cg * fadeB; tCol[off+5] = cb * fadeB;
+      }
+    }
+    this.electrons.geometry.attributes.position.needsUpdate = true;
+    this.electrons.geometry.attributes.color.needsUpdate = true;
+    this.trailMesh.geometry.attributes.position.needsUpdate = true;
+    this.trailMesh.geometry.attributes.color.needsUpdate = true;
+    this.electrons.material.opacity = opacity;
+    this.electrons.material.size = 0.22 * szMul * (0.85 + 0.15*Math.sin(t*5));
+    this.trailMesh.material.opacity = 0.85 * opacity;
+    this.trailMesh.material.linewidth = trailWidth; // mostly ignored by WebGL but set for completeness
+
+    // ── COLLISION DETECTION ──
+    // Throttled by collisionCooldown so we don't check every pair every frame
+    this.collisionCooldown -= dt;
+    if(state.colRate > 0 && state.colHit > 0 && this.collisionCooldown <= 0){
+      this.collisionCooldown = 0.05 / Math.max(0.1, state.colRate); // check ~20-60x/sec
+      const hitDist = state.colHit;
+      const hitDistSq = hitDist * hitDist;
+      // Group electrons by nucleus to limit pair checks (electrons orbiting same nucleus only collide with each other)
+      const byNuc = {};
+      for(let i=0; i<this.electronData.length; i++){
+        const e = this.electronData[i];
+        if(!e.alive) continue;
+        (byNuc[e.nucIdx] ||= []).push(i);
+      }
+      // Pairwise check within each nucleus group, but stop after a couple per group for performance
+      let bursts = 0;
+      const maxBurstsPerFrame = Math.ceil(3 * state.colRate);
+      for(const nucIdx in byNuc){
+        const ids = byNuc[nucIdx];
+        for(let a=0; a<ids.length && bursts < maxBurstsPerFrame; a++){
+          const ea = this.electronData[ids[a]];
+          if(!ea.alive) continue;
+          for(let b=a+1; b<ids.length && bursts < maxBurstsPerFrame; b++){
+            const eb = this.electronData[ids[b]];
+            if(!eb.alive) continue;
+            const dx = ea.pos.x - eb.pos.x;
+            const dy = ea.pos.y - eb.pos.y;
+            const dz = ea.pos.z - eb.pos.z;
+            const distSq = dx*dx + dy*dy + dz*dz;
+            if(distSq < hitDistSq){
+              // COLLISION — pick midpoint, burst, mark both dead
+              const mid = new THREE.Vector3(
+                (ea.pos.x + eb.pos.x) * 0.5,
+                (ea.pos.y + eb.pos.y) * 0.5,
+                (ea.pos.z + eb.pos.z) * 0.5
+              );
+              // Color blend of the two
+              const colA = [eCol[ids[a]*3], eCol[ids[a]*3+1], eCol[ids[a]*3+2]];
+              const colB = [eCol[ids[b]*3], eCol[ids[b]*3+1], eCol[ids[b]*3+2]];
+              const blended = [
+                Math.min(2.0, (colA[0]+colB[0])*0.6),
+                Math.min(2.0, (colA[1]+colB[1])*0.6),
+                Math.min(2.0, (colA[2]+colB[2])*0.6)
+              ];
+              this.spawnBurst(mid, blended);
+              ea.alive = false; eb.alive = false;
+              ea.respawnAt = t + 0.6 + Math.random()*0.8;
+              eb.respawnAt = t + 0.6 + Math.random()*0.8;
+              // Randomize their orbital parameters so they reappear on a different orbit
+              const ax1 = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize();
+              const tmp1 = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5);
+              ea.axisA = ax1; ea.axisB = new THREE.Vector3().crossVectors(ax1, tmp1).normalize();
+              ea.orbitAng = Math.random()*Math.PI*2;
+              const ax2 = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize();
+              const tmp2 = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5);
+              eb.axisA = ax2; eb.axisB = new THREE.Vector3().crossVectors(ax2, tmp2).normalize();
+              eb.orbitAng = Math.random()*Math.PI*2;
+              bursts++;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // ── FIREWORK SPARK UPDATE ──
+    const fwPos = this.fireworks.geometry.attributes.position.array;
+    const fwCol = this.fireworks.geometry.attributes.color.array;
+    const fwSize = this.fireworks.geometry.attributes.aSize.array;
+    const gravity = state.fwGrav;
+    for(let i=0; i<this.maxFireworks; i++){
+      const f = this.fireworkData[i];
+      if(!f.alive){
+        fwSize[i] = 0;
+        fwCol[i*3] = fwCol[i*3+1] = fwCol[i*3+2] = 0;
+        continue;
+      }
+      f.life += dt;
+      if(f.life >= f.maxLife){
+        f.alive = false;
+        fwSize[i] = 0;
+        fwCol[i*3] = fwCol[i*3+1] = fwCol[i*3+2] = 0;
+        continue;
+      }
+      // Apply gravity (downward in world Y)
+      f.vel.y -= gravity * dt;
+      // Light drag
+      f.vel.multiplyScalar(Math.pow(0.92, dt * 60));
+      // Integrate
+      f.pos.x += f.vel.x * dt;
+      f.pos.y += f.vel.y * dt;
+      f.pos.z += f.vel.z * dt;
+      // Lifetime fade — bright early, dim late
+      const lifeFrac = f.life / f.maxLife;
+      const brightness = (1 - lifeFrac) * (1 - lifeFrac * 0.6) * 2.5;
+      fwPos[i*3]   = f.pos.x;
+      fwPos[i*3+1] = f.pos.y;
+      fwPos[i*3+2] = f.pos.z;
+      fwCol[i*3]   = f.col[0] * brightness;
+      fwCol[i*3+1] = f.col[1] * brightness;
+      fwCol[i*3+2] = f.col[2] * brightness;
+      fwSize[i] = f.sz * (1 - lifeFrac * 0.5) * 0.18;
+    }
+    this.fireworks.geometry.attributes.position.needsUpdate = true;
+    this.fireworks.geometry.attributes.color.needsUpdate = true;
+    this.fireworks.geometry.attributes.aSize.needsUpdate = true;
+    this.fireworks.material.uniforms.uOpacity.value = opacity;
+  }
+}
+let collider = new ColliderSystem();
+collider.setVisible(state.layers.collider);
+
+// ──────────────────────────────────────────────────────────
+// INPUT — slide for look offset, throttle for travel speed
+// ──────────────────────────────────────────────────────────
+const slide = { x:0, y:0, vx:0, vy:0, active:false, lastX:0, lastY:0, pointerId:null };
+const slidepad = document.getElementById('slidepad');
+const slideTrail = document.getElementById('slideTrail');
+
+slidepad.addEventListener('pointerdown', e => {
+  if(e.target !== slidepad) return;
+  slide.active = true; slide.pointerId = e.pointerId;
+  slide.lastX = e.clientX; slide.lastY = e.clientY;
+  slidepad.setPointerCapture(e.pointerId);
+  slideTrail.style.left = e.clientX + 'px';
+  slideTrail.style.top = e.clientY + 'px';
+  slideTrail.classList.add('active');
+  e.preventDefault();
+});
+slidepad.addEventListener('pointermove', e => {
+  if(!slide.active || e.pointerId !== slide.pointerId) return;
+  const dx = (e.clientX - slide.lastX) / window.innerWidth;
+  const dy = (e.clientY - slide.lastY) / window.innerHeight;
+  slide.x += dx * state.slide;
+  slide.y += dy * state.slide;
+  slide.x = Math.max(-1.0, Math.min(1.0, slide.x));
+  slide.y = Math.max(-1.0, Math.min(1.0, slide.y));
+  slide.vx = slide.vx * 0.7 + dx * 8;
+  slide.vy = slide.vy * 0.7 + dy * 8;
+  slide.lastX = e.clientX; slide.lastY = e.clientY;
+  slideTrail.style.left = e.clientX + 'px';
+  slideTrail.style.top = e.clientY + 'px';
+  e.preventDefault();
+});
+const slideEnd = e => {
+  if(e.pointerId !== slide.pointerId) return;
+  slide.active = false; slide.pointerId = null;
+  slideTrail.classList.remove('active');
+};
+slidepad.addEventListener('pointerup', slideEnd);
+slidepad.addEventListener('pointercancel', slideEnd);
+
+const throttleEl = document.getElementById('throttle');
+const throttleFill = document.getElementById('throttleFill');
+const throttleVal = document.getElementById('throttleVal');
+let throttleActive = false, throttlePtr = null;
+const updateThrottle = clientY => {
+  const rect = throttleEl.getBoundingClientRect();
+  let t = 1 - (clientY - rect.top) / rect.height;
+  t = Math.max(0, Math.min(1, t));
+  state.throttle = t;
+  throttleFill.style.height = (t*100) + '%';
+  throttleVal.textContent = t.toFixed(2);
+};
+throttleEl.addEventListener('pointerdown', e => {
+  throttleActive = true; throttlePtr = e.pointerId;
+  throttleEl.setPointerCapture(e.pointerId);
+  updateThrottle(e.clientY); e.preventDefault();
+});
+throttleEl.addEventListener('pointermove', e => {
+  if(throttleActive && e.pointerId === throttlePtr){ updateThrottle(e.clientY); e.preventDefault(); }
+});
+throttleEl.addEventListener('pointerup', e => {
+  if(e.pointerId === throttlePtr){ throttleActive = false; throttlePtr = null; }
+});
+
+// ──────────────────────────────────────────────────────────
+// UI
+// ──────────────────────────────────────────────────────────
+function showWhisper(){
+  const el = document.getElementById('whisper');
+  el.textContent = '— ' + whispers[Math.floor(Math.random()*whispers.length)] + ' —';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4500);
+}
+
+document.querySelectorAll('[data-path]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-path]').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    state.path = btn.dataset.path;
+    rebuildTube();
+    showWhisper();
+  });
+});
+
+document.querySelectorAll('[data-layer]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const layer = btn.dataset.layer;
+    state.layers[layer] = !state.layers[layer];
+    btn.classList.toggle('on', state.layers[layer]);
+    if(layer === 'tube' && tubeMesh) tubeMesh.visible = state.layers.tube;
+    if(layer === 'mycelium') myc.setVisible(state.layers.mycelium);
+    if(layer === 'polytopes') presences.forEach(p => p.mesh.visible = state.layers.polytopes);
+    if(layer === 'bubbles' && bubbles) bubbles.visible = state.layers.bubbles;
+    // loopView handled in camera placement
+  });
+});
+
+document.querySelectorAll('[data-pal]').forEach(sw => {
+  sw.addEventListener('click', () => setPalette(parseInt(sw.dataset.pal)));
+});
+
+document.getElementById('btnRandom').addEventListener('click', () => {
+  let next = Math.floor(Math.random()*palettes.length);
+  while(next === state.paletteIdx) next = Math.floor(Math.random()*palettes.length);
+  setPalette(next);
+  // Also randomize path
+  const paths = ['trefoil','figure8','torus','knot41','rose','helix','viviani','circle'];
+  let np = paths[Math.floor(Math.random()*paths.length)];
+  while(np === state.path) np = paths[Math.floor(Math.random()*paths.length)];
+  state.path = np;
+  document.querySelectorAll('[data-path]').forEach(b => b.classList.toggle('on', b.dataset.path === np));
+  rebuildTube();
+  showWhisper();
+});
+document.getElementById('btnPalette').addEventListener('click', () => setPalette(state.paletteIdx + 1));
+document.getElementById('btnPause').addEventListener('click', () => {
+  state.paused = !state.paused;
+  document.getElementById('btnPause').textContent = state.paused ? '⏵' : '⏸';
+  document.getElementById('btnPause').classList.toggle('on', state.paused);
+  document.getElementById('hudSub').textContent = state.paused ? 'frozen' : 'flowing';
+});
+document.getElementById('btnSettings').addEventListener('click', () => {
+  document.getElementById('panel').classList.toggle('open');
+});
+
+const cleanToggle = document.getElementById('cleanToggle');
+cleanToggle.addEventListener('click', () => {
+  document.body.classList.toggle('clean');
+  cleanToggle.textContent = document.body.classList.contains('clean') ? '⊞' : '⊟';
+});
+
+const bind = (id, key, fmt, onChange) => {
+  const el = document.getElementById(id);
+  const out = document.getElementById('v' + id.charAt(0).toUpperCase() + id.slice(1));
+  if(!el) return;
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    state[key] = v;
+    if(out) out.textContent = fmt ? fmt(v) : v.toFixed(2);
+    if(onChange) onChange(v);
+  });
+};
+bind('loopR', 'loopR', v => v.toFixed(1));
+bind('travel', 'travel', v => v.toFixed(3));
+bind('look', 'look', v => v.toFixed(3));
+bind('breathe', 'breathe');
+bind('tubeR', 'tubeR', null, () => rebuildTube());
+bind('detail', 'detail', v => Math.round(v), () => rebuildTube());
+bind('wspd', 'wspd');
+bind('irid', 'irid');
+bind('hue', 'hue');
+bind('bri', 'bri');
+bind('glow', 'glow');
+bind('p4dSz', 'p4dSz');
+bind('p4dRot', 'p4dRot');
+bind('mpls', 'mpls');
+bind('mrng', 'mrng');
+bind('mspr', 'mspr');
+bind('bsz', 'bsz');
+bind('slide', 'slide');
+bind('bank', 'bank');
+bind('scVScale', 'scVScale');
+bind('scVSpd', 'scVSpd');
+bind('scVPull', 'scVPull');
+bind('scVPls', 'scVPls');
+bind('fov', 'fov', v => Math.round(v), () => { camera.fov = state.fov; camera.updateProjectionMatrix(); });
+
+document.getElementById('p4d').addEventListener('input', e => {
+  state.p4d = parseInt(e.target.value);
+  document.getElementById('vP4d').textContent = state.p4d;
+  rebuildPresences();
+});
+document.getElementById('myc').addEventListener('input', e => {
+  state.myc = parseInt(e.target.value);
+  document.getElementById('vMyc').textContent = state.myc;
+  myc.rebuild();
+});
+document.getElementById('bub').addEventListener('input', e => {
+  state.bub = parseInt(e.target.value);
+  document.getElementById('vBub').textContent = state.bub;
+  buildBubbles();
+  patchBubbleMaterial();
+});
+
+// Planet sliders
+document.getElementById('plnt').addEventListener('input', e => {
+  state.plnt = parseInt(e.target.value);
+  document.getElementById('vPlnt').textContent = state.plnt;
+  planets.rebuild();
+});
+bind('plntSz', 'plntSz');
+bind('plntR', 'plntR');
+bind('plntSpd', 'plntSpd');
+bind('plntGlow', 'plntGlow');
+document.getElementById('plntRng').addEventListener('input', e => {
+  state.plntRng = parseFloat(e.target.value);
+  document.getElementById('vPlntRng').textContent = state.plntRng.toFixed(2);
+  planets.rebuild();
+});
+
+// Collider sliders
+document.getElementById('colC').addEventListener('input', e => {
+  state.colC = parseInt(e.target.value);
+  document.getElementById('vColC').textContent = state.colC;
+  collider.rebuild();
+});
+document.getElementById('colNuc').addEventListener('input', e => {
+  state.colNuc = parseInt(e.target.value);
+  document.getElementById('vColNuc').textContent = state.colNuc;
+  collider.rebuild();
+});
+document.getElementById('colTrl').addEventListener('input', e => {
+  state.colTrl = parseInt(e.target.value);
+  document.getElementById('vColTrl').textContent = state.colTrl;
+  collider.rebuild(); // trail length changes geometry size
+});
+bind('colSz', 'colSz');
+bind('colSpd', 'colSpd');
+bind('colR', 'colR');
+bind('colTrlW', 'colTrlW');
+bind('colGlow', 'colGlow');
+bind('colHit', 'colHit');
+bind('colRate', 'colRate');
+document.getElementById('fwCnt').addEventListener('input', e => {
+  state.fwCnt = parseInt(e.target.value);
+  document.getElementById('vFwCnt').textContent = state.fwCnt;
+});
+bind('fwVel', 'fwVel');
+bind('fwLife', 'fwLife');
+bind('fwSz', 'fwSz');
+bind('fwGrav', 'fwGrav');
+bind('fwVar', 'fwVar');
+
+['opTube','opScreen','opMyc','opP4d','opBub','opPlnt','opCol'].forEach(id => {
+  const el = document.getElementById(id);
+  const out = document.getElementById('v' + id.charAt(0).toUpperCase() + id.slice(1));
+  const key = id.replace('op','').toLowerCase();
+  const keyMap = {tube:'tube', screen:'screen', myc:'myc', p4d:'p4d', bub:'bub', plnt:'plnt', col:'col'};
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    state.opacity[keyMap[key]] = v;
+    if(out) out.textContent = v.toFixed(2);
+  });
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => location.reload());
+document.getElementById('snapBtn').addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = 'vein-trefoil-' + Date.now() + '.png';
+  link.href = canvas.toDataURL();
+  link.click();
+});
+document.getElementById('enterBtn').addEventListener('click', () => {
+  document.getElementById('veil').classList.add('gone');
+  setTimeout(showWhisper, 1500);
+});
+
+// ──────────────────────────────────────────────────────────
+// MAIN LOOP
+// ──────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+let simTime = 0;
+let flyFrac = 0;
+
+const upTarget = new THREE.Vector3(0, 1, 0);
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if(!state.paused) simTime += dt;
+  
+  // Slide decay
+  slide.vx *= Math.pow(0.001, dt);
+  slide.vy *= Math.pow(0.001, dt);
+  if(!slide.active){
+    slide.x *= Math.pow(0.6, dt);
+    slide.y *= Math.pow(0.6, dt);
+  }
+  
+  // Palette interp
+  for(let i=0;i<3;i++) curPal[i].lerp(tgtPal[i], dt*1.2);
+  
+  // Update tube curve eval time for breathing
+  tubeCurve.evalT = simTime;
+  
+  // Update tube shader
+  tubeMat.uniforms.uTime.value = simTime;
+  tubeMat.uniforms.uWspd.value = state.wspd;
+  tubeMat.uniforms.uIrid.value = state.irid;
+  tubeMat.uniforms.uHue.value = state.hue;
+  tubeMat.uniforms.uBri.value = state.bri;
+  tubeMat.uniforms.uGlow.value = state.glow;
+  tubeMat.uniforms.uOpacity.value = state.opacity.tube;
+  tubeMat.uniforms.uColA.value.copy(curPal[0]);
+  tubeMat.uniforms.uColB.value.copy(curPal[1]);
+  tubeMat.uniforms.uColC.value.copy(curPal[2]);
+  
+  // Rebuild tube geometry every ~0.1s for breathing (cheap with low detail)
+  // Actually we just leave the geometry static and let the breathing happen
+  // through the shader's vUv movement. To truly breathe the spine we'd need to
+  // rebuild the tube — too expensive. The spine itself does breathe (frameAt uses simTime).
+  
+  // ─── CAMERA — fly along spine ───
+  if(!state.paused) flyFrac = (flyFrac + dt * state.travel) % 1;
+  
+  const f1 = frameAt(flyFrac, simTime);
+  const f2 = frameAt(flyFrac + state.look, simTime);
+  
+  let camTargetPos = f1.p.clone();
+  let camLookPos = f2.p.clone();
+  
+  // SEE THE LOOP — pull camera back & up to see the entire knot
+  if(state.layers.loopView){
+    // Pull camera outward away from spine to view the loop from outside
+    const outward = f1.up.clone().multiplyScalar(state.loopR * 0.9 + 4);
+    const back = f1.forward.clone().multiplyScalar(-state.loopR * 0.4);
+    camTargetPos.add(outward).add(back);
+    // Look toward the center of the knot (origin) for a "seeing the whole loop" view
+    camLookPos.set(0, 0, 0);
+  } else {
+    // Inside-tube view — slide offset
+    const sideOffset = f1.right.clone().multiplyScalar(slide.x * state.tubeR * 0.6)
+      .add(f1.up.clone().multiplyScalar(-slide.y * state.tubeR * 0.6));
+    camTargetPos.add(sideOffset);
+    // Roll bank by slide vx
+    const bankAng = -slide.vx * state.bank * 0.5;
+    const rolledUp = f1.up.clone().applyAxisAngle(f1.forward, bankAng);
+    upTarget.copy(rolledUp);
+  }
+  
+  camera.position.lerp(camTargetPos, 0.12);
+  if(state.layers.loopView){
+    camera.up.set(0, 1, 0);
+  } else {
+    camera.up.lerp(upTarget, 0.15);
+  }
+  camera.lookAt(camLookPos);
+  
+  // Move light with camera
+  point.position.copy(camera.position);
+  
+  // ─── BUBBLES ───
+  if(bubbles && bubbles.visible && !state.paused){
+    const pos = bubbles.geometry.attributes.position.array;
+    const col = bubbles.geometry.attributes.color.array;
+    const data = bubbles.geometry.userData.data;
+    const flowMul = state.throttle * 2 + 0.3;
+    for(let i=0;i<data.length;i++){
+      const d = data[i];
+      d.spineF = (d.spineF + dt * d.driftSpeed * flowMul) % 1;
+      d.offsetAng += dt * 0.5;
+      const frame = frameAt(d.spineF, simTime);
+      const ca = Math.cos(d.offsetAng);
+      const sa = Math.sin(d.offsetAng);
+      pos[i*3]   = frame.p.x + (frame.right.x*ca + frame.up.x*sa) * d.offsetR;
+      pos[i*3+1] = frame.p.y + (frame.right.y*ca + frame.up.y*sa) * d.offsetR;
+      pos[i*3+2] = frame.p.z + (frame.right.z*ca + frame.up.z*sa) * d.offsetR;
+      const c = palettes[state.paletteIdx][d.col];
+      const bri = 0.6 + 0.4*Math.sin(simTime*3 + d.seed*6.28);
+      col[i*3] = c[0]*bri; col[i*3+1] = c[1]*bri; col[i*3+2] = c[2]*bri;
+    }
+    bubbles.geometry.attributes.position.needsUpdate = true;
+    bubbles.geometry.attributes.color.needsUpdate = true;
+    bubbles.material.size = 0.08 * state.bsz * (0.7 + Math.sin(simTime*4)*0.2);
+    bubbles.material.opacity = 0.9 * state.opacity.bub;
+  }
+  
+  // ─── 4D PRESENCES ───
+  if(state.layers.polytopes && !state.paused){
+    for(const p of presences){
+      try { p.update(simTime, dt); } catch(e){}
+    }
+  }
+  
+  // ─── MYCELIUM ───
+  if(state.layers.mycelium && !state.paused){
+    try { myc.update(simTime, dt); } catch(e){}
+  }
+  
+  // ─── PLANETS ───
+  planets.setVisible(state.layers.planets);
+  if(state.layers.planets && !state.paused){
+    try { planets.update(simTime, dt); } catch(e){}
+  }
+  
+  // ─── COLLIDER ───
+  collider.setVisible(state.layers.collider);
+  if(state.layers.collider && !state.paused){
+    try { collider.update(simTime, dt); } catch(e){}
+  }
+  
+  // ─── METER ───
+  const flow = state.throttle * state.wspd + Math.abs(slide.vx) + Math.abs(slide.vy);
+  document.getElementById('meterBig').textContent = flow.toFixed(2);
+  
+  // ─── RENDER ───
+  if(state.layers.screenVein){
+    // Update screen vein uniforms
+    const su = screenVeinMat.uniforms;
+    su.uTime.value = simTime;
+    su.uAspect.value = window.innerWidth / window.innerHeight;
+    su.uThrottle.value = state.throttle;
+    su.uSlide.value.set(slide.x, -slide.y);
+    su.uScale.value = state.scVScale;
+    su.uSpd.value = state.scVSpd;
+    su.uPull.value = state.scVPull;
+    su.uPls.value = state.scVPls;
+    su.uHue.value = state.hue;
+    su.uIrid.value = state.irid;
+    su.uBri.value = state.bri;
+    su.uGlow.value = state.glow;
+    su.uOpacity.value = state.opacity.screen;
+    su.uColA.value.copy(curPal[0]);
+    su.uColB.value.copy(curPal[1]);
+    su.uColC.value.copy(curPal[2]);
+    
+    renderer.autoClear = true;
+    renderer.render(screenVeinScene, screenVeinCam);
+    renderer.autoClear = false;
+    renderer.clearDepth();
+    renderer.render(scene, camera);
+  } else {
+    renderer.autoClear = true;
+    renderer.render(scene, camera);
+  }
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+document.addEventListener('touchmove', e => { if(e.target === document.body || e.target === slidepad) e.preventDefault(); }, {passive:false});
+document.addEventListener('gesturestart', e => e.preventDefault());
+
+</script>
+</body>
+</html>
